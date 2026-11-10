@@ -14,6 +14,7 @@ class ChartPage extends StatefulWidget {
 class _ChartPageState extends State<ChartPage>
     with SingleTickerProviderStateMixin {
   late final WebViewController _controller;
+  late final WebViewController _lbankChartController;
   late final TabController _tabController;
   final LBankFuturesService _lbankService = LBankFuturesService();
 
@@ -77,6 +78,7 @@ class _ChartPageState extends State<ChartPage>
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabChange);
     _initializeTradingView();
+    _initializeLBankChart();
     _loadInstruments();
   }
 
@@ -151,6 +153,7 @@ class _ChartPageState extends State<ChartPage>
           setState(() { _selectedSymbol = value; _quote = null; _orderBook = null; _contractInfo = null; });
           _loadLBankQuote(); _loadOrderBook(); _loadContractInfo();
           _reloadTradingView();
+          _reloadLBankChart();
         },
       ),
       Text('${_instruments.length} قرارداد در فهرست دریافت‌شده',
@@ -514,7 +517,16 @@ class _ChartPageState extends State<ChartPage>
   };
 
   void _initializeTradingView() {
-    _controller = WebViewController()
+    _controller = _createChartController();
+    _controller.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+  }
+
+  void _initializeLBankChart() {
+    _lbankChartController = _createChartController();
+    _lbankChartController.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+  }
+
+  WebViewController _createChartController() => WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(_background)
       ..setNavigationDelegate(
@@ -538,11 +550,7 @@ class _ChartPageState extends State<ChartPage>
           },
         ),
       )
-      ..loadHtmlString(
-        _buildTradingViewHtml(),
-        baseUrl: 'https://www.tradingview.com',
-      );
-  }
+      ;
 
   String _buildTradingViewHtml() => '''
 <!DOCTYPE html><html><head>
@@ -582,10 +590,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       _isLoading = true;
       _errorMessage = '';
     });
-    await _controller.loadHtmlString(
-      _buildTradingViewHtml(),
-      baseUrl: 'https://www.tradingview.com',
-    );
+    await _controller.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+    await _lbankChartController.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+  }
+
+  Future<void> _reloadLBankChart() async {
+    await _lbankChartController.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
   }
 
   Widget _buildTradingViewTab() => Column(
@@ -615,6 +625,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
                       if (selected) return;
                       setState(() => _selectedLBankTimeframe = value);
                       _reloadTradingView();
+                      _reloadLBankChart();
                     },
                     selectedColor: _green.withValues(alpha: 0.22),
                     backgroundColor: _surface,
@@ -700,6 +711,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
               if (selected) return;
               setState(() => _selectedLBankTimeframe = value);
               _reloadTradingView();
+              _reloadLBankChart();
             },
             selectedColor: _green.withValues(alpha: 0.22),
             backgroundColor: _surface,
@@ -727,10 +739,16 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
         const SizedBox(height: 12),
         _buildAnalysisTools(),
         const SizedBox(height: 10),
-        const Text('بوم ترسیم مستقل — در انتظار اتصال کندل Futures',
+        const Text('نمودار قرارداد Futures از منبع TradingView',
           style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
-        ChartDrawingCanvas(tool: _selectedDrawingTool),
+        SizedBox(
+          height: 430,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: WebViewWidget(controller: _lbankChartController),
+          ),
+        ),
         const SizedBox(height: 14),
 
         Row(children: [
