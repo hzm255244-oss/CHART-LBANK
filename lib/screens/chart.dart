@@ -293,7 +293,7 @@ class _ChartPageState extends State<ChartPage>
             visualDensity: VisualDensity.compact),
         ]),
         if (book != null) ...[
-          Text('آخرین به‌روزرسانی: \${book.fetchedAt.toLocal()}',
+          Text('آخرین به‌روزرسانی: ${book.fetchedAt.toLocal()}',
             style: const TextStyle(color: Colors.white38, fontSize: 10)),
           const SizedBox(height: 10),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -396,16 +396,16 @@ class _ChartPageState extends State<ChartPage>
               final volumeText = contracts.toStringAsFixed(8)
                   .replaceFirst(RegExp(r'\.?0+$'), '');
               setDialogState(() => result =
-                  'جهت معامله: \${isLong ? 'Long' : 'Short'}\n'
-                  'ریسک مجاز: \${riskAmount.toStringAsFixed(4)} USDT\n'
+                  "جهت معامله: ${isLong ? 'Long' : 'Short'}\n"
+                  'ریسک مجاز: ${riskAmount.toStringAsFixed(4)} USDT\n'
                   'تعداد قرارداد: $volumeText\n'
-                  'ضریب هر قرارداد: \${info.volumeMultiple}\n'
-                  'مقدار دارایی معادل: \${exposureUnits.toStringAsFixed(6)}\n'
-                  'ریسک محاسبه‌شده: \${actualRisk.toStringAsFixed(4)} USDT\n'
-                  'ارزش اسمی پوزیشن: \${notional.toStringAsFixed(4)} USDT\n'
-                  'سود بالقوه تا هدف: \${potentialProfit.toStringAsFixed(4)} USDT\n'
-                  'نسبت ریسک به ریوارد: 1 : \${ratio.toStringAsFixed(2)}\n'
-                  '\${estimatedMargin > 0 ? 'مارجین تخمینی با اهرم پیش‌فرض \${leverage}x: \${estimatedMargin.toStringAsFixed(4)} USDT\n' : ''}'
+                  'ضریب هر قرارداد: ${info.volumeMultiple}\n'
+                  'مقدار دارایی معادل: ${exposureUnits.toStringAsFixed(6)}\n'
+                  'ریسک محاسبه‌شده: ${actualRisk.toStringAsFixed(4)} USDT\n'
+                  'ارزش اسمی پوزیشن: ${notional.toStringAsFixed(4)} USDT\n'
+                  'سود بالقوه تا هدف: ${potentialProfit.toStringAsFixed(4)} USDT\n'
+                  'نسبت ریسک به ریوارد: 1 : ${ratio.toStringAsFixed(2)}\n'
+                  "${estimatedMargin > 0 ? 'مارجین تخمینی با اهرم پیش‌فرض ${leverage}x: ${estimatedMargin.toStringAsFixed(4)} USDT\n' : ''}"
                   'حجم به گام مجاز قرارداد رو به پایین گرد شده است.\n'
                   'کارمزد، فاندینگ، لغزش قیمت و ریسک لیکوییدشدن لحاظ نشده‌اند.');
             }, child: const Text('محاسبه')),
