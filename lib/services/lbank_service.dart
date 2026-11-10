@@ -39,10 +39,70 @@ class LBankFuturesQuote {
   }
 }
 
+
+class LBankBookLevel {
+  final double price;
+  final double volume;
+  final int orders;
+  const LBankBookLevel({required this.price, required this.volume, required this.orders});
+}
+
+class LBankOrderBook {
+  final String symbol;
+  final List<LBankBookLevel> bids;
+  final List<LBankBookLevel> asks;
+  final DateTime fetchedAt;
+  const LBankOrderBook({required this.symbol, required this.bids, required this.asks, required this.fetchedAt});
+}
+
 class LBankFuturesService {
   static const String _baseUrl = 'https://lbkperp.lbank.com';
   static const String _productGroup = 'SwapU';
   static const String _targetSymbol = 'GOLDUSDT';
+
+
+  Future<LBankOrderBook> fetchGoldOrderBook({int depth = 20}) async {
+    final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/marketOrder')
+        .replace(queryParameters: {
+      'symbol': _targetSymbol,
+      'depth': depth.toString(),
+    });
+    final response = await http.get(uri).timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception('خطای دریافت دفتر سفارش: HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      throw Exception('ساختار پاسخ دفتر سفارش LBank معتبر نیست.');
+    }
+    if (decoded['success'] == false || decoded['result'] == false) {
+      throw Exception(decoded['msg']?.toString() ?? 'LBank دفتر سفارش را برنگرداند.');
+    }
+    final data = decoded['data'] is Map ? decoded['data'] as Map : decoded;
+    List<LBankBookLevel> parseSide(dynamic value) {
+      if (value is! List) return const [];
+      return value.whereType<Map>().map((row) {
+        return LBankBookLevel(
+          price: double.tryParse(row['price']?.toString() ?? '') ?? 0,
+          volume: double.tryParse(row['volume']?.toString() ?? '') ?? 0,
+          orders: int.tryParse(row['orders']?.toString() ?? '') ?? 0,
+        );
+      }).where((level) => level.price > 0 && level.volume >= 0).toList();
+    }
+    final bids = parseSide(data['bids']);
+    final asks = parseSide(data['asks']);
+    if (bids.isEmpty && asks.isEmpty) {
+      throw Exception('دفتر سفارش برای قرارداد $_targetSymbol خالی است.');
+    }
+    bids.sort((a, b) => b.price.compareTo(a.price));
+    asks.sort((a, b) => a.price.compareTo(b.price));
+    return LBankOrderBook(
+      symbol: _targetSymbol,
+      bids: bids.take(depth).toList(),
+      asks: asks.take(depth).toList(),
+      fetchedAt: DateTime.now(),
+    );
+  }
 
   Future<LBankFuturesQuote> fetchGoldQuote() async {
     final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/marketData')
