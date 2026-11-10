@@ -60,7 +60,9 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
     height: 270,
     child: LayoutBuilder(builder: (context, c) {
       final size = Size(c.maxWidth, 270);
-      if (!_loaded) return const SizedBox(height: 270, child: Center(child: CircularProgressIndicator()));\n      return Container(\n        decoration: BoxDecoration(color: const Color(0xFF131722),
+      if (!_loaded) return const SizedBox(height: 270, child: Center(child: CircularProgressIndicator()));
+      return Container(
+        decoration: BoxDecoration(color: const Color(0xFF131722),
           border: Border.all(color: Colors.white12), borderRadius: BorderRadius.circular(8)),
         child: Stack(children: [
           Positioned.fill(child: GestureDetector(
@@ -73,7 +75,8 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
             },
             onPanEnd: (_) {
               if (_start != null && _current != null) {
-                setState(() { _drawings.add(_Drawing(widget.tool, _start!, _current!)); _start = null; _current = null; });\n                _persistDrawings();
+                setState(() { _drawings.add(_Drawing(widget.tool, _start!, _current!)); _start = null; _current = null; });
+                _persistDrawings();
               }
             },
             child: CustomPaint(
