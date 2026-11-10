@@ -1,6 +1,5 @@
-
-name: helloworld
-description: A new Flutter project.
+name: chart_lbank
+description: CHART LBANK Flutter application.
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -12,11 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
   webview_flutter: ^4.0.0
 
-
-  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -25,5 +21,4 @@ dev_dependencies:
 flutter:
   config:
     enable-swift-package-manager: false
-
   uses-material-design: true

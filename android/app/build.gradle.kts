@@ -1,4 +1,3 @@
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -6,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.helloworld"
+    namespace = "com.chartlbank.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,7 +15,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.helloworld"
+        applicationId = "com.chartlbank.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

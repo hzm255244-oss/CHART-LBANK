@@ -1,4 +1,4 @@
-package com.example.helloworld
+package com.chartlbank.app
 
 import io.flutter.embedding.android.FlutterActivity
 

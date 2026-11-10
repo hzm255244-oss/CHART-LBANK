@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'screens/chart.dart';
 
@@ -14,14 +13,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Trading App',
-
+      title: 'CHART LBANK',
       theme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: const Color(0xFF131722),
       ),
-
       home: const ChartPage(),
     );
   }

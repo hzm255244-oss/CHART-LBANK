@@ -1,19 +1,9 @@
-# Hello World
+# CHART LBANK
 
-A new Flutter project created with FlutLab - https://flutlab.io
+Flutter application for viewing LBank GOLDUSDT perpetual charts.
 
-## Getting Started
+## Build Android APK
 
-A few resources to get you started if this is your first Flutter project:
+The GitHub Actions workflow in `.github/workflows/build-apk.yml` builds a release APK on pushes to `main` and can also be started manually from the Actions tab.
 
-- https://flutter.dev/docs/get-started/codelab
-- https://flutter.dev/docs/cookbook
-
-For help getting started with Flutter, view our
-https://flutter.dev/docs, which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
-## Getting Started: FlutLab - Flutter Online IDE
-
-- How to use FlutLab? Please, view our https://flutlab.io/docs
-- Join the discussion and conversation on https://flutlab.io/residents
+The generated APK is available as the `CHART-LBANK-release-apk` workflow artifact.
