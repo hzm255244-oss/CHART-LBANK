@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/lbank_service.dart';
 import '../widgets/chart_drawing_canvas.dart';
+import '../widgets/pnl_fibonacci_tool.dart';
 
 class ChartPage extends StatefulWidget {
   const ChartPage({super.key});
@@ -442,6 +443,17 @@ class _ChartPageState extends State<ChartPage>
         ),
       );
 
+  void _showPnlFibonacciTool() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => PnlFibonacciTool(
+        initialPrice: _quote?.lastPrice ?? 0,
+      ),
+    );
+  }
+
   Widget _buildAnalysisTools() => Container(
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(10),
@@ -471,6 +483,11 @@ class _ChartPageState extends State<ChartPage>
       )),
       const SizedBox(height: 8),
       Wrap(spacing: 8, children: [
+        OutlinedButton.icon(
+          onPressed: _showPnlFibonacciTool,
+          icon: const Icon(Icons.show_chart, size: 16),
+          label: const Text('PnL Fibonacci'),
+        ),
         OutlinedButton.icon(
           onPressed: _showRiskRewardCalculator,
           icon: const Icon(Icons.calculate_outlined, size: 16),
