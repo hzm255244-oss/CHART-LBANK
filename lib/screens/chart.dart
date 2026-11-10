@@ -611,8 +611,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       _isLoading = true;
       _errorMessage = '';
     });
-    await _controller.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
-    await _lbankChartController.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+    await _controller.loadHtmlString(
+      _buildTradingViewHtml(),
+      baseUrl: 'https://www.tradingview.com',
+    );
   }
 
   Future<void> _reloadLBankChart() async {
