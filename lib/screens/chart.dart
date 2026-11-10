@@ -104,19 +104,26 @@ class _ChartPageState extends State<ChartPage>
 
 
   Future<void> _showRiskRewardCalculator() async {
+    final balance = TextEditingController();
+    final riskPercent = TextEditingController(text: '1');
     final entry = TextEditingController();
     final stop = TextEditingController();
     final target = TextEditingController();
     String? result;
+
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: _surface,
-          title: const Text('محاسبه‌گر ریسک به ریوارد',
+          title: const Text('مدیریت ریسک و محاسبه حجم',
               style: TextStyle(color: Colors.white)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _riskInput(balance, 'موجودی حساب (USDT)'),
+              const SizedBox(height: 10),
+              _riskInput(riskPercent, 'درصد ریسک در هر معامله'),
+              const SizedBox(height: 10),
               _riskInput(entry, 'قیمت ورود'),
               const SizedBox(height: 10),
               _riskInput(stop, 'حد ضرر'),
@@ -124,26 +131,39 @@ class _ChartPageState extends State<ChartPage>
               _riskInput(target, 'حد سود'),
               if (result != null) ...[
                 const SizedBox(height: 14),
-                Text(result!, style: const TextStyle(color: _green)),
+                SelectableText(result!,
+                    style: const TextStyle(color: _green, height: 1.6)),
               ],
             ]),
           ),
           actions: [
             TextButton(onPressed: () {
+              final b = double.tryParse(balance.text);
+              final rp = double.tryParse(riskPercent.text);
               final e = double.tryParse(entry.text);
               final sl = double.tryParse(stop.text);
               final tp = double.tryParse(target.text);
-              if (e == null || sl == null || tp == null ||
+              if (b == null || rp == null || e == null || sl == null ||
+                  tp == null || b <= 0 || rp <= 0 || rp > 100 ||
                   e <= 0 || sl <= 0 || tp <= 0 || e == sl || e == tp) {
-                setDialogState(() => result = 'لطفاً قیمت‌های معتبر وارد کنید.');
+                setDialogState(() => result =
+                    'همه مقادیر را معتبر وارد کنید. درصد ریسک باید بین صفر و ۱۰۰ باشد.');
                 return;
               }
-              final risk = (e - sl).abs();
-              final reward = (tp - e).abs();
+              final riskDistance = (e - sl).abs();
+              final rewardDistance = (tp - e).abs();
+              final riskAmount = b * rp / 100;
+              final quantity = riskAmount / riskDistance;
+              final notional = quantity * e;
+              final ratio = rewardDistance / riskDistance;
+              final potentialProfit = quantity * rewardDistance;
               setDialogState(() => result =
-                  'فاصله ریسک: ${risk.toStringAsFixed(4)}\n'
-                  'فاصله سود: ${reward.toStringAsFixed(4)}\n'
-                  'نسبت ریسک به ریوارد: 1 : ${(reward / risk).toStringAsFixed(2)}');
+                  'مبلغ ریسک: ${riskAmount.toStringAsFixed(2)} USDT\n'
+                  'حجم پیشنهادی: ${quantity.toStringAsFixed(6)} واحد\n'
+                  'ارزش اسمی پوزیشن: ${notional.toStringAsFixed(2)} USDT\n'
+                  'سود بالقوه تا هدف: ${potentialProfit.toStringAsFixed(2)} USDT\n'
+                  'نسبت ریسک به ریوارد: 1 : ${ratio.toStringAsFixed(2)}\n'
+                  'این محاسبه کارمزد، لغزش قیمت و اهرم را لحاظ نمی‌کند.');
             }, child: const Text('محاسبه')),
             TextButton(onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('بستن')),
@@ -151,7 +171,11 @@ class _ChartPageState extends State<ChartPage>
         ),
       ),
     );
-    entry.dispose(); stop.dispose(); target.dispose();
+    balance.dispose();
+    riskPercent.dispose();
+    entry.dispose();
+    stop.dispose();
+    target.dispose();
   }
 
   Widget _riskInput(TextEditingController controller, String label) =>
