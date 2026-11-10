@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChartDrawingCanvas extends StatefulWidget {
   final String tool;
@@ -10,6 +12,45 @@ class ChartDrawingCanvas extends StatefulWidget {
 class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
   final List<_Drawing> _drawings = [];
   Offset? _start, _current;
+  bool _loaded = false;
+  String get _storageKey => 'lbank_chart_drawings_v1';
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreDrawings();
+  }
+
+  Future<void> _restoreDrawings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_storageKey);
+      if (raw != null) {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          _drawings
+            ..clear()
+            ..addAll(decoded.whereType<Map>().map((e) => _Drawing(
+              e['tool']?.toString() ?? 'trend',
+              Offset((e['sx'] as num).toDouble(), (e['sy'] as num).toDouble()),
+              Offset((e['ex'] as num).toDouble(), (e['ey'] as num).toDouble()),
+            )));
+        }
+      }
+    } catch (_) {
+      // Ignore malformed local drawing data and keep the canvas usable.
+    }
+    if (mounted) setState(() => _loaded = true);
+  }
+
+  Future<void> _persistDrawings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = _drawings.map((d) => {
+      'tool': d.tool, 'sx': d.start.dx, 'sy': d.start.dy,
+      'ex': d.end.dx, 'ey': d.end.dy,
+    }).toList();
+    await prefs.setString(_storageKey, jsonEncode(data));
+  }
 
   Offset _normalize(Offset p, Size s) =>
       Offset((p.dx / s.width).clamp(0.0, 1.0), (p.dy / s.height).clamp(0.0, 1.0));
@@ -19,8 +60,7 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
     height: 270,
     child: LayoutBuilder(builder: (context, c) {
       final size = Size(c.maxWidth, 270);
-      return Container(
-        decoration: BoxDecoration(color: const Color(0xFF131722),
+      if (!_loaded) return const SizedBox(height: 270, child: Center(child: CircularProgressIndicator()));\n      return Container(\n        decoration: BoxDecoration(color: const Color(0xFF131722),
           border: Border.all(color: Colors.white12), borderRadius: BorderRadius.circular(8)),
         child: Stack(children: [
           Positioned.fill(child: GestureDetector(
@@ -33,7 +73,7 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
             },
             onPanEnd: (_) {
               if (_start != null && _current != null) {
-                setState(() { _drawings.add(_Drawing(widget.tool, _start!, _current!)); _start = null; _current = null; });
+                setState(() { _drawings.add(_Drawing(widget.tool, _start!, _current!)); _start = null; _current = null; });\n                _persistDrawings();
               }
             },
             child: CustomPaint(
@@ -44,9 +84,9 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
           )),
           Positioned(top: 5, left: 5, child: Row(children: [
             IconButton(tooltip: 'پاک‌کردن ترسیمات', visualDensity: VisualDensity.compact,
-              onPressed: _drawings.isEmpty ? null : () => setState(() => _drawings.clear()),
+              onPressed: _drawings.isEmpty ? null : () { setState(() => _drawings.clear()); _persistDrawings(); },
               icon: const Icon(Icons.delete_outline, color: Colors.white70, size: 19)),
-            Text('${_drawings.length} ترسیم', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+            Text('${_drawings.length} ترسیم, style: const TextStyle(color: Colors.white54, fontSize: 10)),
           ])),
           if (widget.tool == 'pointer')
             const Positioned(left: 0, right: 0, bottom: 10,
