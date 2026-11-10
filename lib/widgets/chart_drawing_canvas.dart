@@ -86,7 +86,7 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
             IconButton(tooltip: 'پاک‌کردن ترسیمات', visualDensity: VisualDensity.compact,
               onPressed: _drawings.isEmpty ? null : () { setState(() => _drawings.clear()); _persistDrawings(); },
               icon: const Icon(Icons.delete_outline, color: Colors.white70, size: 19)),
-            Text('${_drawings.length} ترسیم, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+            Text('${_drawings.length} ترسیم', style: const TextStyle(color: Colors.white54, fontSize: 10)),
           ])),
           if (widget.tool == 'pointer')
             const Positioned(left: 0, right: 0, bottom: 10,
