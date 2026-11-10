@@ -55,11 +55,59 @@ class LBankOrderBook {
   const LBankOrderBook({required this.symbol, required this.bids, required this.asks, required this.fetchedAt});
 }
 
+
+class LBankContractInfo {
+  final String symbol, baseCurrency, priceCurrency;
+  final double priceTick, volumeTick, volumeMultiple;
+  final double minOrderVolume, maxOrderVolume, minOrderCost, defaultLeverage;
+  const LBankContractInfo({required this.symbol, required this.baseCurrency,
+    required this.priceCurrency, required this.priceTick, required this.volumeTick,
+    required this.volumeMultiple, required this.minOrderVolume,
+    required this.maxOrderVolume, required this.minOrderCost,
+    required this.defaultLeverage});
+  static double _n(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
+  factory LBankContractInfo.fromJson(Map<String, dynamic> j) => LBankContractInfo(
+    symbol: (j['symbol'] ?? '').toString(),
+    baseCurrency: (j['baseCurrency'] ?? '').toString(),
+    priceCurrency: (j['priceCurrency'] ?? '').toString(),
+    priceTick: _n(j['priceTick']), volumeTick: _n(j['volumeTick']),
+    volumeMultiple: _n(j['volumeMultiple']),
+    minOrderVolume: _n(j['minOrderVolume']), maxOrderVolume: _n(j['maxOrderVolume']),
+    minOrderCost: _n(j['minOrderCost']), defaultLeverage: _n(j['defaultLeverage']));
+}
+
 class LBankFuturesService {
   static const String _baseUrl = 'https://lbkperp.lbank.com';
   static const String _productGroup = 'SwapU';
   static const String _targetSymbol = 'GOLDUSDT';
 
+
+
+  Future<LBankContractInfo> fetchGoldContractInfo() async {
+    final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/instrument')
+        .replace(queryParameters: {'productGroup': _productGroup});
+    final response = await http.get(uri).timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception('خطای دریافت مشخصات قرارداد: HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body);
+    dynamic data = decoded;
+    if (data is Map) {
+      if (data['success'] == false || data['result'] == false) {
+        throw Exception(data['msg']?.toString() ?? 'خطای دریافت مشخصات قرارداد');
+      }
+      data = data['data'] ?? data['list'] ?? data['result'] ?? data;
+    }
+    final rows = data is List ? data : (data is Map && data['list'] is List
+        ? data['list'] as List : [data]);
+    for (final row in rows.whereType<Map>()) {
+      final symbol = (row['symbol'] ?? '').toString().toUpperCase();
+      if (symbol == _targetSymbol || symbol == 'GOLDUSDT.P') {
+        return LBankContractInfo.fromJson(Map<String, dynamic>.from(row));
+      }
+    }
+    throw Exception('مشخصات قرارداد $_targetSymbol در گروه $_productGroup پیدا نشد.');
+  }
 
   Future<LBankOrderBook> fetchGoldOrderBook({int depth = 20}) async {
     final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/marketOrder')
