@@ -645,7 +645,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
         const SizedBox(height: 14),
 
         Row(children: [
-          const Expanded(
+          Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('$_selectedSymbol Futures',
                   style: TextStyle(
