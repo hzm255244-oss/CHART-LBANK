@@ -20,6 +20,18 @@ class _ChartPageState extends State<ChartPage>
   LBankFuturesQuote? _quote;
   bool _quoteLoading = false;
   String _selectedLBankTimeframe = '15m';
+  String _selectedDrawingTool = 'pointer';
+  bool _showVolume = true;
+
+  static const List<Map<String, String>> _drawingTools = [
+    {'id': 'pointer', 'label': 'انتخاب', 'icon': '☝'},
+    {'id': 'trend', 'label': 'خط روند', 'icon': '／'},
+    {'id': 'horizontal', 'label': 'خط افقی', 'icon': '—'},
+    {'id': 'vertical', 'label': 'خط عمودی', 'icon': '│'},
+    {'id': 'rectangle', 'label': 'مستطیل', 'icon': '▭'},
+    {'id': 'fib', 'label': 'فیبوناچی', 'icon': 'F'},
+    {'id': 'ruler', 'label': 'خط‌کش', 'icon': '↔'},
+  ];
 
   static const List<Map<String, String>> _lbankTimeframes = [
     {'label': '1m', 'value': '1m'},
@@ -89,6 +101,121 @@ class _ChartPageState extends State<ChartPage>
       if (mounted) setState(() => _quoteLoading = false);
     }
   }
+
+
+  Future<void> _showRiskRewardCalculator() async {
+    final entry = TextEditingController();
+    final stop = TextEditingController();
+    final target = TextEditingController();
+    String? result;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: _surface,
+          title: const Text('محاسبه‌گر ریسک به ریوارد',
+              style: TextStyle(color: Colors.white)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _riskInput(entry, 'قیمت ورود'),
+              const SizedBox(height: 10),
+              _riskInput(stop, 'حد ضرر'),
+              const SizedBox(height: 10),
+              _riskInput(target, 'حد سود'),
+              if (result != null) ...[
+                const SizedBox(height: 14),
+                Text(result!, style: const TextStyle(color: _green)),
+              ],
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () {
+              final e = double.tryParse(entry.text);
+              final sl = double.tryParse(stop.text);
+              final tp = double.tryParse(target.text);
+              if (e == null || sl == null || tp == null ||
+                  e <= 0 || sl <= 0 || tp <= 0 || e == sl || e == tp) {
+                setDialogState(() => result = 'لطفاً قیمت‌های معتبر وارد کنید.');
+                return;
+              }
+              final risk = (e - sl).abs();
+              final reward = (tp - e).abs();
+              setDialogState(() => result =
+                  'فاصله ریسک: ${risk.toStringAsFixed(4)}\n'
+                  'فاصله سود: ${reward.toStringAsFixed(4)}\n'
+                  'نسبت ریسک به ریوارد: 1 : ${(reward / risk).toStringAsFixed(2)}');
+            }, child: const Text('محاسبه')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('بستن')),
+          ],
+        ),
+      ),
+    );
+    entry.dispose(); stop.dispose(); target.dispose();
+  }
+
+  Widget _riskInput(TextEditingController controller, String label) =>
+      TextField(
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Colors.white70),
+          enabledBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24)),
+          focusedBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: _green)),
+        ),
+      );
+
+  Widget _buildAnalysisTools() => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(color: _surface,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Colors.white12)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('ابزارهای تحلیل و ترسیم',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 8),
+      SizedBox(height: 38, child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: _drawingTools.map((tool) {
+          final selected = _selectedDrawingTool == tool['id'];
+          return Padding(padding: const EdgeInsets.only(right: 6),
+            child: ChoiceChip(
+              label: Text('${tool['icon']} ${tool['label']}'),
+              selected: selected,
+              onSelected: (_) => setState(
+                () => _selectedDrawingTool = tool['id']!),
+              selectedColor: _green.withValues(alpha: 0.2),
+              backgroundColor: _background,
+              labelStyle: TextStyle(
+                color: selected ? _green : Colors.white70, fontSize: 11),
+            ));
+        }).toList(),
+      )),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, children: [
+        OutlinedButton.icon(
+          onPressed: _showRiskRewardCalculator,
+          icon: const Icon(Icons.calculate_outlined, size: 16),
+          label: const Text('ریسک به ریوارد')),
+        FilterChip(
+          label: const Text('نمایش حجم'),
+          selected: _showVolume,
+          onSelected: (v) => setState(() => _showVolume = v),
+          selectedColor: _green.withValues(alpha: 0.2),
+          checkmarkColor: _green,
+          labelStyle: const TextStyle(color: Colors.white70, fontSize: 11)),
+      ]),
+      Text(_selectedDrawingTool == 'pointer'
+        ? 'ابزار انتخاب فعال است.'
+        : 'ابزار انتخاب‌شده: ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']}. برای رسم روی نمودار، ابتدا باید بوم کندلی مستقل فعال شود.',
+        style: const TextStyle(color: Colors.white54, fontSize: 10)),
+    ]),
+  );
 
   void _initializeTradingView() {
     _controller = WebViewController()
@@ -239,6 +366,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         timeframeSelector,
         const SizedBox(height: 12),
+        _buildAnalysisTools(),
 
         Row(children: [
           const Expanded(
@@ -285,7 +413,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
           Row(children: [
             _metric('Mark Price', q.markedPrice.toStringAsFixed(4)),
             const SizedBox(width: 8),
-            _metric('حجم ۲۴ساعته', q.volume.toStringAsFixed(2)),
+            if (_showVolume) _metric('حجم ۲۴ساعته', q.volume.toStringAsFixed(2)),
           ]),
           const SizedBox(height: 18),
           Container(
