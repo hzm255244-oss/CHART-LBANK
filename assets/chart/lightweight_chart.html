@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>CHART LBANK</title>
+<style>
+*{box-sizing:border-box}html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#131722;color:#d1d4dc;font:12px Arial,sans-serif}
+#toolbar{height:42px;display:flex;align-items:center;gap:5px;padding:4px 6px;background:#1e222d;border-bottom:1px solid #2a2e39;overflow-x:auto;white-space:nowrap}
+.tool{height:31px;min-width:34px;padding:0 8px;border:1px solid #363a45;border-radius:4px;background:#252a36;color:#d1d4dc}
+.tool.active{border-color:#2962ff;background:#17336c;color:#fff}
+#chart-wrap{position:absolute;top:42px;left:0;right:0;bottom:28px}
+#chart{position:absolute;inset:0}
+#draw-layer{position:absolute;inset:0;width:100%;height:100%;touch-action:none;pointer-events:auto}
+#status{position:absolute;left:8px;bottom:5px;color:#9aa0aa;background:#1e222dcc;padding:5px 8px;border-radius:4px;z-index:3;pointer-events:none}
+#footer{position:absolute;bottom:0;height:28px;left:0;right:0;background:#1e222d;border-top:1px solid #2a2e39;display:flex;align-items:center;padding:0 8px;color:#9aa0aa}
+</style>
+<script src="https://unpkg.com/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body><div id="app">
+<div id="toolbar">
+<button class="tool active" data-tool="pointer">انتخاب</button>
+<button class="tool" data-tool="measure">Measure</button>
+<button class="tool" data-tool="trendline">Trendline</button>
+<button class="tool" data-tool="crossline">Crossline</button>
+<button class="tool" data-tool="fibchannel">Fib Channel</button>
+<button class="tool" data-tool="fibretracement">Fib Retracement</button>
+<button class="tool" data-tool="range">Date/Price Range</button>
+<button class="tool" data-tool="text">Text</button>
+<button class="tool" data-tool="pin">Pin</button>
+<button class="tool" id="undo">↶</button>
+<button class="tool" id="clear">پاک‌کردن</button>
+</div>
+<div id="chart-wrap"><div id="chart"></div><canvas id="draw-layer"></canvas><div id="status">در انتظار دریافت کندل‌های واقعی LBank…</div></div>
+<div id="footer"><span id="symbol">LBANK Futures</span><span style="margin-left:auto">Lightweight Charts · drawing prototype</span></div>
+</div>
+<script>
+(function(){
+'use strict';
+const host=document.getElementById('chart'), canvas=document.getElementById('draw-layer'),ctx=canvas.getContext('2d');
+const status=document.getElementById('status');
+if(!window.LightweightCharts){status.textContent='بارگذاری کتابخانه نمودار ناموفق بود؛ اتصال اینترنت را بررسی کنید.';return;}
+const chart=LightweightCharts.createChart(host,{layout:{background:{color:'#131722'},textColor:'#d1d4dc'},grid:{vertLines:{color:'#1e222d'},horzLines:{color:'#1e222d'}},rightPriceScale:{borderColor:'#363a45'},timeScale:{borderColor:'#363a45',timeVisible:true,secondsVisible:false},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},handleScroll:true,handleScale:true});
+const candles=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:'#26a69a',downColor:'#ef5350',borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
+let active='pointer', drawings=[], pending=[], drag=null;
+function size(){const r=host.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(r.width*d));canvas.height=Math.max(1,Math.round(r.height*d));canvas.style.width=r.width+'px';canvas.style.height=r.height+'px';ctx.setTransform(d,0,0,d,0,0);chart.resize(r.width,r.height);render();}
+new ResizeObserver(size).observe(host);
+function point(e){const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
+function anchor(p){const t=chart.timeScale().coordinateToTime(p.x),v=candles.coordinateToPrice(p.y);return t==null||v==null?null:{time:t,price:v};}
+function xy(a){if(!a)return null;const x=chart.timeScale().timeToCoordinate(a.time),y=candles.priceToCoordinate(a.price);return x==null||y==null?null:{x,y};}
+function line(a,b,color='#2962ff',dash=[]){const p=xy(a),q=xy(b);if(!p||!q)return;ctx.strokeStyle=color;ctx.lineWidth=1.6;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=color;[p,q].forEach(v=>{ctx.beginPath();ctx.arc(v.x,v.y,3,0,Math.PI*2);ctx.fill();});}
+function render(){const r=host.getBoundingClientRect(),d=window.devicePixelRatio||1;ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,r.width,r.height);
+for(const x of drawings){const a=x.points[0],b=x.points[1],c=x.points[2];if(x.type==='trendline'||x.type==='measure'||x.type==='range'||x.type==='fibretracement')line(a,b,x.type==='trendline'?'#2962ff':'#f5a623',x.type==='measure'?[4,3]:[]);
+else if(x.type==='crossline'){const p=xy(a);if(p){ctx.strokeStyle='#9aa0aa';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,r.height);ctx.moveTo(0,p.y);ctx.lineTo(r.width,p.y);ctx.stroke();ctx.setLineDash([]);}}
+else if(x.type==='fibchannel'){line(a,b,'#2962ff');if(c){const p=xy(a),q=xy(b),z=xy(c);if(p&&q&&z){const dx=q.x-p.x,dy=q.y-p.y;[0.382,0.5,0.618,1].forEach(k=>{const off=(z.y-p.y)*k;ctx.strokeStyle='#26a69a';ctx.beginPath();ctx.moveTo(p.x,p.y+off);ctx.lineTo(q.x,q.y+off);ctx.stroke();});}}}
+else if(x.type==='text'){const p=xy(a);if(p){ctx.fillStyle='#fff';ctx.font='13px Arial';ctx.fillText(x.text||'Text',p.x+5,p.y-5);}}
+else if(x.type==='pin'){const p=xy(a);if(p){ctx.fillStyle='#f5a623';ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();}}
+}}
+function finishTool(type,pts){let textValue='';if(type==='text'){textValue=window.prompt('متن روی نمودار:','یادداشت');if(textValue===null)return;}drawings.push({type,points:pts,text:textValue});render();}
+document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{active=b.dataset.tool;pending=[];document.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));status.textContent=active==='pointer'?'حالت انتخاب':('ابزار فعال: '+b.textContent+' — روی نمودار لمس کنید');}));
+document.getElementById('undo').onclick=()=>{drawings.pop();render();};
+document.getElementById('clear').onclick=()=>{if(confirm('تمام ترسیمات پاک شوند؟')){drawings=[];render();}};
+canvas.addEventListener('pointerdown',e=>{if(active==='pointer')return;const p=point(e),a=anchor(p);if(!a){status.textContent='برای ترسیم، ابتدا باید کندل‌های معتبر دریافت شوند.';return;}e.preventDefault();canvas.setPointerCapture(e.pointerId);pending.push(a);
+const needed=active==='crossline'||active==='pin'||active==='text'?1:active==='fibchannel'?3:2;
+if(pending.length>=needed){finishTool(active,pending.slice(0,needed));pending=[];if(active!=='pointer')status.textContent='ترسیم ثبت شد؛ ابزار برای ترسیم بعدی فعال است.';}
+});
+chart.timeScale().subscribeVisibleTimeRangeChange(render);
+window.chartLbank={setCandles(data){if(!Array.isArray(data))return;const rows=data.filter(x=>x&&Number.isFinite(x.time)&&Number.isFinite(x.open)&&Number.isFinite(x.high)&&Number.isFinite(x.low)&&Number.isFinite(x.close)).sort((a,b)=>a.time-b.time);candles.setData(rows);status.textContent=rows.length?'کندل‌ها دریافت شدند: '+rows.length:'داده کندل معتبر دریافت نشد.';chart.timeScale().fitContent();render();},setSymbol(s){document.getElementById('symbol').textContent=s;},setTool(t){const b=document.querySelector('[data-tool="'+t+'"]');if(b)b.click();},getDrawings(){return drawings;},clear(){drawings=[];render();}};
+size();
+})();
+</script></body></html>
