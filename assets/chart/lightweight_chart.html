@@ -42,7 +42,7 @@ const status=document.getElementById('status');
 if(!window.LightweightCharts){status.textContent='بارگذاری کتابخانه نمودار ناموفق بود؛ اتصال اینترنت را بررسی کنید.';return;}
 const chart=LightweightCharts.createChart(host,{layout:{background:{color:'#131722'},textColor:'#d1d4dc'},grid:{vertLines:{color:'#1e222d'},horzLines:{color:'#1e222d'}},rightPriceScale:{borderColor:'#363a45'},timeScale:{borderColor:'#363a45',timeVisible:true,secondsVisible:false},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},handleScroll:true,handleScale:true});
 const candles=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:'#26a69a',downColor:'#ef5350',borderUpColor:'#26a69a',borderDownColor:'#ef5350',wickUpColor:'#26a69a',wickDownColor:'#ef5350'});
-let active='pointer', drawings=[], pending=[], drag=null;
+let active='pointer', drawings=[], pending=[], drag=null;canvas.style.pointerEvents='none';
 function size(){const r=host.getBoundingClientRect(),d=window.devicePixelRatio||1;canvas.width=Math.max(1,Math.round(r.width*d));canvas.height=Math.max(1,Math.round(r.height*d));canvas.style.width=r.width+'px';canvas.style.height=r.height+'px';ctx.setTransform(d,0,0,d,0,0);chart.resize(r.width,r.height);render();}
 new ResizeObserver(size).observe(host);
 function point(e){const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};}
@@ -57,7 +57,7 @@ else if(x.type==='text'){const p=xy(a);if(p){ctx.fillStyle='#fff';ctx.font='13px
 else if(x.type==='pin'){const p=xy(a);if(p){ctx.fillStyle='#f5a623';ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fill();}}
 }}
 function finishTool(type,pts){let textValue='';if(type==='text'){textValue=window.prompt('متن روی نمودار:','یادداشت');if(textValue===null)return;}drawings.push({type,points:pts,text:textValue});render();}
-document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{active=b.dataset.tool;pending=[];document.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));status.textContent=active==='pointer'?'حالت انتخاب':('ابزار فعال: '+b.textContent+' — روی نمودار لمس کنید');}));
+document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>{active=b.dataset.tool;pending=[];canvas.style.pointerEvents=active==='pointer'?'none':'auto';document.querySelectorAll('[data-tool]').forEach(x=>x.classList.toggle('active',x===b));status.textContent=active==='pointer'?'حالت انتخاب':('ابزار فعال: '+b.textContent+' — روی نمودار لمس کنید');}));
 document.getElementById('undo').onclick=()=>{drawings.pop();render();};
 document.getElementById('clear').onclick=()=>{if(confirm('تمام ترسیمات پاک شوند؟')){drawings=[];render();}};
 canvas.addEventListener('pointerdown',e=>{if(active==='pointer')return;const p=point(e),a=anchor(p);if(!a){status.textContent='برای ترسیم، ابتدا باید کندل‌های معتبر دریافت شوند.';return;}e.preventDefault();canvas.setPointerCapture(e.pointerId);pending.push(a);
