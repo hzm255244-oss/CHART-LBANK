@@ -503,8 +503,8 @@ class _ChartPageState extends State<ChartPage>
           labelStyle: const TextStyle(color: Colors.white70, fontSize: 11)),
       ]),
       Text(_selectedDrawingTool == 'pointer'
-        ? 'حالت انتخاب فعال است؛ برای رسم، ابزار موردنظر را انتخاب کن.'
-        : 'ابزار ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']} فعال است. ترسیم فعلی به‌صورت لایه تصویری روی پنجره نمودار ذخیره می‌شود و هنوز به مختصات قیمت/زمان کندل متصل نیست.',
+        ? 'انتخاب و جابه‌جایی ترسیمات؛ برای حرکت دادن نمودار، از کنترل‌های خود نمودار استفاده کن.'
+        : 'ابزار ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']} فعال است. ترسیم روی نمودار نمایش داده و برای همین نماد و تایم‌فریم ذخیره می‌شود. اتصال دقیق به قیمت و زمان کندل هنوز فعال نیست.',
         style: const TextStyle(color: Colors.white54, fontSize: 10)),
     ]),
   );
@@ -715,21 +715,62 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
         ),
       );
 
+  Widget _buildLBankTimeframeSelector() => SizedBox(
+    height: 40,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: _lbankTimeframes.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 6),
+      itemBuilder: (context, index) {
+        final item = _lbankTimeframes[index];
+        final value = item['value']!;
+        final selected = value == _selectedLBankTimeframe;
+        return ChoiceChip(
+          label: Text(item['label']!),
+          selected: selected,
+          onSelected: (_) async {
+            if (selected) return;
+            setState(() => _selectedLBankTimeframe = value);
+            await _reloadLBankChart();
+          },
+          selectedColor: _green.withValues(alpha: .22),
+          backgroundColor: _surface,
+          labelStyle: TextStyle(
+            color: selected ? _green : Colors.white70,
+            fontSize: 11,
+          ),
+        );
+      },
+    ),
+  );
+
   Widget _buildLBankTab() {
-remove LBank duplicate timeframe selector    final q = _quote;
+    final q = _quote;
     final positive = q != null && q.lastPrice >= q.openPrice;
     return Container(
       color: _background,
       padding: const EdgeInsets.all(14),
       child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _buildInstrumentSelector(),
+        const SizedBox(height: 8),
+        _buildLBankTimeframeSelector(),
         const SizedBox(height: 10),
-        const SizedBox(height: 12),
         _buildAnalysisTools(),
         const SizedBox(height: 10),
-        const Text('صفحه رسمی معاملات Futures در LBank',
-          style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 6),
+        Row(children: [
+          const Expanded(
+            child: Text('نمودار زنده LBank Futures',
+              style: TextStyle(color: Colors.white70, fontSize: 12,
+                fontWeight: FontWeight.bold)),
+          ),
+          IconButton(
+            tooltip: 'بارگذاری مجدد نمودار',
+            visualDensity: VisualDensity.compact,
+            onPressed: _reloadLBankChart,
+            icon: const Icon(Icons.refresh, color: Colors.white70, size: 19),
+          ),
+        ]),
+        const SizedBox(height: 4),
         SizedBox(
           height: 430,
           child: ClipRRect(
