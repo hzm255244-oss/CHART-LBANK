@@ -77,6 +77,7 @@ class _ChartPageState extends State<ChartPage>
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_handleTabChange);
     _initializeTradingView();
+    _loadInstruments();
   }
 
   void _handleTabChange() {
@@ -149,6 +150,7 @@ class _ChartPageState extends State<ChartPage>
           if (value == null || value == _selectedSymbol) return;
           setState(() { _selectedSymbol = value; _quote = null; _orderBook = null; _contractInfo = null; });
           _loadLBankQuote(); _loadOrderBook(); _loadContractInfo();
+          _reloadTradingView();
         },
       ),
       Text('${_instruments.length} قرارداد در فهرست دریافت‌شده',
@@ -485,6 +487,32 @@ class _ChartPageState extends State<ChartPage>
     ]),
   );
 
+  String get _tradingViewSymbol {
+    final normalized = _selectedSymbol.toUpperCase().replaceAll(
+      RegExp(r'\.P$'), '',
+    );
+    return 'LBANK:$normalized.P';
+  }
+
+  String get _tradingViewInterval => switch (_selectedLBankTimeframe) {
+    '1m' => '1',
+    '3m' => '3',
+    '5m' => '5',
+    '15m' => '15',
+    '30m' => '30',
+    '1h' => '60',
+    '2h' => '120',
+    '4h' => '240',
+    '6h' => '360',
+    '8h' => '480',
+    '12h' => '720',
+    '1d' => 'D',
+    '3d' => '3D',
+    '1w' => 'W',
+    '1M' => 'M',
+    _ => '15',
+  };
+
   void _initializeTradingView() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -510,11 +538,13 @@ class _ChartPageState extends State<ChartPage>
           },
         ),
       )
-      ..loadHtmlString(_tradingViewHtml,
-          baseUrl: 'https://www.tradingview.com');
+      ..loadHtmlString(
+        _buildTradingViewHtml(),
+        baseUrl: 'https://www.tradingview.com',
+      );
   }
 
-  static const String _tradingViewHtml = r'''
+  String _buildTradingViewHtml() => '''
 <!DOCTYPE html><html><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -526,54 +556,109 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
 <div class="tradingview-widget-container__widget"></div>
 <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
 {
-"autosize":true,"symbol":"LBANK:GOLDUSDT.P","interval":"15",
-"timezone":"Etc/UTC","theme":"dark","style":"1","locale":"fa",
-"enable_publishing":false,"allow_symbol_change":false,
-"hide_top_toolbar":false,"hide_legend":false,"save_image":false,
-"withdateranges":true,"details":true,"calendar":false,
-"support_host":"https://www.tradingview.com"
+  "autosize":true,
+  "symbol":"$_tradingViewSymbol",
+  "interval":"$_tradingViewInterval",
+  "timezone":"Etc/UTC",
+  "theme":"dark",
+  "style":"1",
+  "locale":"fa",
+  "enable_publishing":false,
+  "allow_symbol_change":false,
+  "hide_top_toolbar":false,
+  "hide_legend":false,
+  "save_image":false,
+  "withdateranges":true,
+  "details":true,
+  "calendar":false,
+  "support_host":"https://www.tradingview.com"
 }
 </script></div></body></html>
 ''';
 
   Future<void> _reloadTradingView() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
-    await _controller.reload();
+    await _controller.loadHtmlString(
+      _buildTradingViewHtml(),
+      baseUrl: 'https://www.tradingview.com',
+    );
   }
 
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    _tabController.removeListener(_handleTabChange);
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Widget _buildTradingViewTab() => Stack(children: [
-        WebViewWidget(controller: _controller),
-        if (_isLoading)
-          const Center(child: CircularProgressIndicator(color: Colors.blue)),
-        if (_errorMessage.isNotEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.wifi_off, color: Colors.white70, size: 45),
-                const SizedBox(height: 15),
-                Text(_errorMessage,
+  Widget _buildTradingViewTab() => Column(
+    children: [
+      Container(
+        color: _background,
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildInstrumentSelector(),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _lbankTimeframes.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (context, index) {
+                  final item = _lbankTimeframes[index];
+                  final value = item['value']!;
+                  final selected = value == _selectedLBankTimeframe;
+                  return ChoiceChip(
+                    label: Text(item['label']!),
+                    selected: selected,
+                    onSelected: (_) {
+                      if (selected) return;
+                      setState(() => _selectedLBankTimeframe = value);
+                      _reloadTradingView();
+                    },
+                    selectedColor: _green.withValues(alpha: 0.22),
+                    backgroundColor: _surface,
+                    labelStyle: TextStyle(
+                      color: selected ? _green : Colors.white70,
+                      fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    side: BorderSide(
+                      color: selected ? _green : Colors.white12,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      Expanded(
+        child: Stack(children: [
+          WebViewWidget(controller: _controller),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator(color: Colors.blue)),
+          if (_errorMessage.isNotEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.wifi_off, color: Colors.white70, size: 45),
+                  const SizedBox(height: 15),
+                  Text(_errorMessage,
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white)),
-                const SizedBox(height: 15),
-                ElevatedButton(
+                  const SizedBox(height: 15),
+                  ElevatedButton(
                     onPressed: _reloadTradingView,
-                    child: const Text('تلاش مجدد')),
-              ]),
+                    child: const Text('تلاش مجدد'),
+                  ),
+                ]),
+              ),
             ),
-          ),
-      ]);
+        ]),
+      ),
+    ],
+  );
 
   Widget _metric(String label, String value) => Expanded(
         child: Container(
@@ -611,7 +696,11 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
           return ChoiceChip(
             label: Text(item['label']!),
             selected: selected,
-            onSelected: (_) => setState(() => _selectedLBankTimeframe = value),
+            onSelected: (_) {
+              if (selected) return;
+              setState(() => _selectedLBankTimeframe = value);
+              _reloadTradingView();
+            },
             selectedColor: _green.withValues(alpha: 0.22),
             backgroundColor: _surface,
             labelStyle: TextStyle(
@@ -736,7 +825,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
           title: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('GOLDUSDT.P',
+                Text('$_selectedSymbol.P',
                     style:
                         TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 Text('LBank Futures',
