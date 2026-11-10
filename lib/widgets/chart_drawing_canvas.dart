@@ -246,7 +246,9 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
     return LayoutBuilder(builder: (context, constraints) {
       final size = Size(constraints.maxWidth, constraints.maxHeight);
       if (!_loaded) return const SizedBox.expand();
-      return GestureDetector(
+      return IgnorePointer(
+        ignoring: widget.tool == 'pointer',
+        child: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTapDown: (details) => _onTap(details.localPosition, size),
           onPanStart: (details) => _onPanStart(details, size),
@@ -343,6 +345,7 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
               ),
             ],
           ),
+        ),
       );
     });
   }
