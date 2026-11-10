@@ -76,12 +76,50 @@ class LBankContractInfo {
     minOrderCost: _n(j['minOrderCost']), defaultLeverage: _n(j['defaultLeverage']));
 }
 
+
+class LBankFuturesInstrument {
+  final String symbol, symbolName, baseCurrency, priceCurrency;
+  final double priceTick, volumeTick, volumeMultiple, minOrderVolume, maxOrderVolume;
+  const LBankFuturesInstrument({required this.symbol, required this.symbolName,
+    required this.baseCurrency, required this.priceCurrency, required this.priceTick,
+    required this.volumeTick, required this.volumeMultiple, required this.minOrderVolume,
+    required this.maxOrderVolume});
+  factory LBankFuturesInstrument.fromJson(Map<String,dynamic> j) => LBankFuturesInstrument(
+    symbol: (j['symbol'] ?? '').toString(),
+    symbolName: (j['symbolName'] ?? j['symbol'] ?? '').toString(),
+    baseCurrency: (j['baseCurrency'] ?? '').toString(),
+    priceCurrency: (j['priceCurrency'] ?? '').toString(),
+    priceTick: LBankContractInfo._n(j['priceTick']),
+    volumeTick: LBankContractInfo._n(j['volumeTick']),
+    volumeMultiple: LBankContractInfo._n(j['volumeMultiple']),
+    minOrderVolume: LBankContractInfo._n(j['minOrderVolume']),
+    maxOrderVolume: LBankContractInfo._n(j['maxOrderVolume']));
+}
+
 class LBankFuturesService {
   static const String _baseUrl = 'https://lbkperp.lbank.com';
   static const String _productGroup = 'SwapU';
   static const String _targetSymbol = 'GOLDUSDT';
 
 
+
+
+  Future<List<LBankFuturesInstrument>> fetchAllFuturesInstruments() async {
+    final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/instrument')
+        .replace(queryParameters: {'productGroup': _productGroup});
+    final response = await http.get(uri).timeout(const Duration(seconds: 20));
+    if (response.statusCode != 200) {
+      throw Exception('خطای دریافت فهرست قراردادها: HTTP ${response.statusCode}');
+    }
+    final rows = _extractRows(jsonDecode(response.body));
+    final instruments = rows.map(LBankFuturesInstrument.fromJson)
+        .where((e) => e.symbol.isNotEmpty).toList()
+      ..sort((a,b) => a.symbol.compareTo(b.symbol));
+    if (instruments.isEmpty) {
+      throw Exception('فهرست قراردادهای Futures خالی است یا پاسخ API قابل‌خواندن نیست.');
+    }
+    return instruments;
+  }
 
   Future<LBankContractInfo> fetchGoldContractInfo() async {
     final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/instrument')
