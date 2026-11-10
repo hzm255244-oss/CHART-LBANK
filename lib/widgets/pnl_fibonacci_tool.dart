@@ -116,7 +116,7 @@ class _PnlFibonacciToolState extends State<PnlFibonacciTool> {
   @override
   Widget build(BuildContext context) {
     final percentages = _levels.text
-        .split(RegExp(r'[,;\\s]+'))
+        .split(RegExp(r'[,; ]+'))
         .map((s) => double.tryParse(s))
         .whereType<double>()
         .toList();
