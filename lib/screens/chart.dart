@@ -595,6 +595,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
   "enable_publishing":false,
   "allow_symbol_change":false,
   "hide_top_toolbar":false,
+  "hide_side_toolbar":false,
   "hide_legend":false,
   "save_image":false,
   "withdateranges":true,
