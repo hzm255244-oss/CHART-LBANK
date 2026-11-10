@@ -18,7 +18,10 @@ class _ChartPageState extends State<ChartPage>
 
   Timer? _refreshTimer;
   LBankFuturesQuote? _quote;
+  LBankOrderBook? _orderBook;
   bool _quoteLoading = false;
+  bool _bookLoading = false;
+  String? _bookError;
   String _selectedLBankTimeframe = '15m';
   String _selectedDrawingTool = 'pointer';
   bool _showVolume = true;
@@ -72,10 +75,11 @@ class _ChartPageState extends State<ChartPage>
     if (_tabController.indexIsChanging) return;
     if (_tabController.index == 1) {
       _loadLBankQuote();
+      _loadOrderBook();
       _refreshTimer ??= Timer.periodic(
         const Duration(seconds: 10),
         (_) {
-          if (mounted && _tabController.index == 1) _loadLBankQuote();
+          if (mounted && _tabController.index == 1) { _loadLBankQuote(); _loadOrderBook(); }
         },
       );
     } else {
@@ -102,6 +106,82 @@ class _ChartPageState extends State<ChartPage>
     }
   }
 
+
+
+  Future<void> _loadOrderBook() async {
+    if (_bookLoading) return;
+    setState(() { _bookLoading = true; _bookError = null; });
+    try {
+      final result = await _lbankService.fetchGoldOrderBook();
+      if (!mounted) return;
+      setState(() => _orderBook = result);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _bookError = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _bookLoading = false);
+    }
+  }
+
+  Widget _bookSide(String title, List<LBankBookLevel> levels, Color color) {
+    final maxVolume = levels.fold<double>(0, (m, e) => e.volume > m ? e.volume : m);
+    return Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 7),
+      const Row(children: [
+        Expanded(child: Text('قیمت', style: TextStyle(color: Colors.white38, fontSize: 10))),
+        Expanded(child: Text('حجم', textAlign: TextAlign.end, style: TextStyle(color: Colors.white38, fontSize: 10))),
+      ]),
+      const SizedBox(height: 4),
+      ...levels.take(10).map((level) {
+        final fraction = maxVolume <= 0 ? 0.0 : (level.volume / maxVolume).clamp(0.0, 1.0);
+        return Stack(children: [
+          Positioned.fill(child: Align(alignment: Alignment.centerRight,
+            child: FractionallySizedBox(widthFactor: fraction,
+              child: Container(color: color.withValues(alpha: 0.12))))),
+          Padding(padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+            child: Row(children: [
+              Expanded(child: Text(level.price.toStringAsFixed(4),
+                style: TextStyle(color: color, fontSize: 11), overflow: TextOverflow.ellipsis)),
+              Expanded(child: Text(level.volume.toStringAsFixed(4), textAlign: TextAlign.end,
+                style: const TextStyle(color: Colors.white70, fontSize: 11))),
+            ])),
+        ]);
+      }),
+    ]));
+  }
+
+  Widget _buildOrderBook() {
+    final book = _orderBook;
+    return Container(padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          const Expanded(child: Text('دفتر سفارش Futures',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          if (_bookLoading) const SizedBox(width: 14, height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+          IconButton(onPressed: _bookLoading ? null : _loadOrderBook,
+            icon: const Icon(Icons.refresh, color: Colors.white70, size: 18),
+            visualDensity: VisualDensity.compact),
+        ]),
+        if (book != null) ...[
+          Text('آخرین به‌روزرسانی: \${book.fetchedAt.toLocal()}',
+            style: const TextStyle(color: Colors.white38, fontSize: 10)),
+          const SizedBox(height: 10),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _bookSide('خریداران (Bid)', book.bids, _green),
+            const SizedBox(width: 12),
+            _bookSide('فروشندگان (Ask)', book.asks, _red),
+          ]),
+        ] else if (_bookError != null)
+          Text(_bookError!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11))
+        else
+          const Text('در انتظار دریافت دفتر سفارش…',
+            style: TextStyle(color: Colors.white54, fontSize: 11)),
+      ]));
+  }
 
   Future<void> _showRiskRewardCalculator() async {
     final balance = TextEditingController();
@@ -406,7 +486,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
             ]),
           ),
           IconButton(
-            onPressed: _quoteLoading ? null : _loadLBankQuote,
+            onPressed: _quoteLoading ? null : () { _loadLBankQuote(); _loadOrderBook(); },
             icon: _quoteLoading
                 ? const SizedBox(
                     width: 20,
@@ -468,6 +548,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
             ),
           ),
         ],
+        if (q != null) ...[const SizedBox(height: 14), _buildOrderBook()],
         if (q != null) const Spacer(),
         const Text(
           'منبع: API عمومی Contract Futures صرافی LBank',
