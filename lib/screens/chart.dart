@@ -258,7 +258,7 @@ class _ChartPageState extends State<ChartPage>
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: _surface,
-          title: const Text('مدیریت ریسک و محاسبه حجم',
+          title: const Text('مدیریت ریسک و محاسبه حجم Futures',
               style: TextStyle(color: Colors.white)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -285,27 +285,65 @@ class _ChartPageState extends State<ChartPage>
               final e = double.tryParse(entry.text);
               final sl = double.tryParse(stop.text);
               final tp = double.tryParse(target.text);
+              final info = _contractInfo;
               if (b == null || rp == null || e == null || sl == null ||
                   tp == null || b <= 0 || rp <= 0 || rp > 100 ||
                   e <= 0 || sl <= 0 || tp <= 0 || e == sl || e == tp) {
                 setDialogState(() => result =
-                    'همه مقادیر را معتبر وارد کنید. درصد ریسک باید بین صفر و ۱۰۰ باشد.');
+                    'مقادیر را معتبر وارد کنید؛ درصد ریسک باید بیشتر از صفر و حداکثر ۱۰۰ باشد.');
                 return;
               }
-              final riskDistance = (e - sl).abs();
-              final rewardDistance = (tp - e).abs();
+              if (info == null || info.volumeMultiple <= 0 ||
+                  info.volumeTick <= 0 || info.minOrderVolume <= 0) {
+                setDialogState(() => result =
+                    'مشخصات معتبر قرارداد هنوز دریافت نشده است. ابتدا در تب LBank مشخصات قرارداد را تازه‌سازی کنید.');
+                return;
+              }
+              final isLong = sl < e && tp > e;
+              final isShort = sl > e && tp < e;
+              if (!isLong && !isShort) {
+                setDialogState(() => result =
+                    'برای Long حد ضرر پایین‌تر و حد سود بالاتر از ورود؛ برای Short برعکس وارد کنید.');
+                return;
+              }
               final riskAmount = b * rp / 100;
-              final quantity = riskAmount / riskDistance;
-              final notional = quantity * e;
-              final ratio = rewardDistance / riskDistance;
-              final potentialProfit = quantity * rewardDistance;
+              final riskPerContract = (e - sl).abs() * info.volumeMultiple;
+              final rawContracts = riskAmount / riskPerContract;
+              final contracts = (rawContracts / info.volumeTick).floor() *
+                  info.volumeTick;
+              if (contracts < info.minOrderVolume) {
+                setDialogState(() => result =
+                    'حجم محاسبه‌شده کمتر از حداقل حجم مجاز قرارداد است. برای رعایت سقف ریسک، حجم را خودکار افزایش ندادیم.');
+                return;
+              }
+              if (info.maxOrderVolume > 0 && contracts > info.maxOrderVolume) {
+                setDialogState(() => result =
+                    'حجم محاسبه‌شده از حداکثر حجم مجاز بیشتر است. حجم را بازبینی کنید یا سفارش را طبق محدودیت صرافی تقسیم کنید.');
+                return;
+              }
+              final exposureUnits = contracts * info.volumeMultiple;
+              final notional = exposureUnits * e;
+              final actualRisk = contracts * riskPerContract;
+              final rewardPerContract = (tp - e).abs() * info.volumeMultiple;
+              final potentialProfit = contracts * rewardPerContract;
+              final ratio = rewardPerContract / riskPerContract;
+              final leverage = info.defaultLeverage;
+              final estimatedMargin = leverage > 0 ? notional / leverage : 0;
+              final volumeText = contracts.toStringAsFixed(8)
+                  .replaceFirst(RegExp(r'\.?0+$'), '');
               setDialogState(() => result =
-                  'مبلغ ریسک: ${riskAmount.toStringAsFixed(2)} USDT\n'
-                  'حجم پیشنهادی: ${quantity.toStringAsFixed(6)} واحد\n'
-                  'ارزش اسمی پوزیشن: ${notional.toStringAsFixed(2)} USDT\n'
-                  'سود بالقوه تا هدف: ${potentialProfit.toStringAsFixed(2)} USDT\n'
-                  'نسبت ریسک به ریوارد: 1 : ${ratio.toStringAsFixed(2)}\n'
-                  'این محاسبه کارمزد، لغزش قیمت و اهرم را لحاظ نمی‌کند.');
+                  'جهت معامله: \${isLong ? 'Long' : 'Short'}\n'
+                  'ریسک مجاز: \${riskAmount.toStringAsFixed(4)} USDT\n'
+                  'تعداد قرارداد: $volumeText\n'
+                  'ضریب هر قرارداد: \${info.volumeMultiple}\n'
+                  'مقدار دارایی معادل: \${exposureUnits.toStringAsFixed(6)}\n'
+                  'ریسک محاسبه‌شده: \${actualRisk.toStringAsFixed(4)} USDT\n'
+                  'ارزش اسمی پوزیشن: \${notional.toStringAsFixed(4)} USDT\n'
+                  'سود بالقوه تا هدف: \${potentialProfit.toStringAsFixed(4)} USDT\n'
+                  'نسبت ریسک به ریوارد: 1 : \${ratio.toStringAsFixed(2)}\n'
+                  '\${estimatedMargin > 0 ? 'مارجین تخمینی با اهرم پیش‌فرض \${leverage}x: \${estimatedMargin.toStringAsFixed(4)} USDT\n' : ''}'
+                  'حجم به گام مجاز قرارداد رو به پایین گرد شده است.\n'
+                  'کارمزد، فاندینگ، لغزش قیمت و ریسک لیکوییدشدن لحاظ نشده‌اند.');
             }, child: const Text('محاسبه')),
             TextButton(onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('بستن')),
