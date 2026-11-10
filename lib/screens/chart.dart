@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/lbank_service.dart';
-import '../widgets/chart_drawing_canvas.dart';
 import '../widgets/pnl_fibonacci_tool.dart';
 
 class ChartPage extends StatefulWidget {
@@ -33,20 +33,7 @@ class _ChartPageState extends State<ChartPage>
   bool _bookLoading = false;
   String? _bookError;
   String _selectedLBankTimeframe = '15m';
-  String _selectedDrawingTool = 'pointer';
   bool _showVolume = true;
-
-  static const List<Map<String, String>> _drawingTools = [
-    {'id': 'pointer', 'label': 'انتخاب', 'icon': '☝'},
-    {'id': 'measure', 'label': 'Measure', 'icon': '↔'},
-    {'id': 'trendline', 'label': 'Trendline', 'icon': '／'},
-    {'id': 'crossline', 'label': 'Crossline', 'icon': '＋'},
-    {'id': 'fibchannel', 'label': 'Fib Channel', 'icon': '▤'},
-    {'id': 'fib_retracement', 'label': 'Fib Retracement', 'icon': 'F'},
-    {'id': 'date_price_range', 'label': 'Date & Price Range', 'icon': '↗'},
-    {'id': 'text', 'label': 'Text', 'icon': 'T'},
-    {'id': 'pin', 'label': 'Pin', 'icon': '📍'},
-  ];
 
   static const List<Map<String, String>> _lbankTimeframes = [
     {'label': '1m', 'value': '1m'},
@@ -154,9 +141,14 @@ class _ChartPageState extends State<ChartPage>
         onChanged: (value) {
           if (value == null || value == _selectedSymbol) return;
           setState(() { _selectedSymbol = value; _quote = null; _orderBook = null; _contractInfo = null; });
-          _loadLBankQuote(); _loadOrderBook(); _loadContractInfo();
-          _reloadTradingView();
-          _reloadLBankChart();
+          if (_tabController.index == 0) {
+            _updateLightweightChartContext();
+          } else {
+            _loadLBankQuote();
+            _loadOrderBook();
+            _loadContractInfo();
+            _reloadLBankChart();
+          }
         },
       ),
       Text('${_instruments.length} قرارداد در فهرست دریافت‌شده',
@@ -456,59 +448,6 @@ class _ChartPageState extends State<ChartPage>
     );
   }
 
-  Widget _buildAnalysisTools() => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(color: _surface,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: Colors.white12)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('ابزارهای تحلیل و ترسیم',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 8),
-      SizedBox(height: 38, child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: _drawingTools.map((tool) {
-          final selected = _selectedDrawingTool == tool['id'];
-          return Padding(padding: const EdgeInsets.only(right: 6),
-            child: ChoiceChip(
-              label: Text('${tool['icon']} ${tool['label']}'),
-              selected: selected,
-              onSelected: (_) => setState(
-                () => _selectedDrawingTool = tool['id']!),
-              selectedColor: _green.withValues(alpha: 0.2),
-              backgroundColor: _background,
-              labelStyle: TextStyle(
-                color: selected ? _green : Colors.white70, fontSize: 11),
-            ));
-        }).toList(),
-      )),
-      const SizedBox(height: 8),
-      Wrap(spacing: 8, children: [
-        OutlinedButton.icon(
-          onPressed: _showPnlFibonacciTool,
-          icon: const Icon(Icons.show_chart, size: 16),
-          label: const Text('PnL Fibonacci'),
-        ),
-        OutlinedButton.icon(
-          onPressed: _showRiskRewardCalculator,
-          icon: const Icon(Icons.calculate_outlined, size: 16),
-          label: const Text('ریسک به ریوارد')),
-        FilterChip(
-          label: const Text('نمایش حجم'),
-          selected: _showVolume,
-          onSelected: (v) => setState(() => _showVolume = v),
-          selectedColor: _green.withValues(alpha: 0.2),
-          checkmarkColor: _green,
-          labelStyle: const TextStyle(color: Colors.white70, fontSize: 11)),
-      ]),
-      Text(_selectedDrawingTool == 'pointer'
-        ? 'انتخاب و جابه‌جایی ترسیمات؛ برای حرکت دادن نمودار، از کنترل‌های خود نمودار استفاده کن.'
-        : 'ابزار ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']} فعال است. ترسیم روی نمودار نمایش داده و برای همین نماد و تایم‌فریم ذخیره می‌شود. اتصال دقیق به قیمت و زمان کندل هنوز فعال نیست.',
-        style: const TextStyle(color: Colors.white54, fontSize: 10)),
-    ]),
-  );
-
   Uri get _lbankFuturesPageUri => Uri.parse('https://www.lbank.com/futures/${_selectedSymbol.toLowerCase()}');
 
   String get _tradingViewSymbol {
@@ -539,7 +478,23 @@ class _ChartPageState extends State<ChartPage>
 
   void _initializeTradingView() {
     _controller = _createChartController();
-    _controller.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+    _loadLightweightChart();
+  }
+
+  Future<void> _loadLightweightChart() async {
+    try {
+      final html = await rootBundle.loadString('assets/chart/lightweight_chart.html');
+      await _controller.loadHtmlString(
+        html,
+        baseUrl: 'https://unpkg.com/',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'خطا در بارگذاری نمودار جدید: $e';
+      });
+    }
   }
 
   void _initializeLBankChart() {
@@ -573,46 +528,24 @@ class _ChartPageState extends State<ChartPage>
       )
       ;
 
-  String _buildTradingViewHtml() => '''
-<!DOCTYPE html><html><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#131722}
-.tradingview-widget-container,.tradingview-widget-container__widget{width:100%;height:100%}
-</style></head><body>
-<div class="tradingview-widget-container">
-<div class="tradingview-widget-container__widget"></div>
-<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-{
-  "autosize":true,
-  "symbol":"$_tradingViewSymbol",
-  "interval":"$_tradingViewInterval",
-  "timezone":"Etc/UTC",
-  "theme":"dark",
-  "style":"1",
-  "locale":"fa",
-  "enable_publishing":false,
-  "allow_symbol_change":false,
-  "hide_top_toolbar":false,
-  "hide_legend":false,
-  "save_image":false,
-  "withdateranges":true,
-  "details":true,
-  "calendar":false,
-  "support_host":"https://www.tradingview.com"
-}
-</script></div></body></html>
-''';
-
   Future<void> _reloadTradingView() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
-    await _controller.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
-    await _lbankChartController.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+    await _loadLightweightChart();
+  }
+
+  Future<void> _updateLightweightChartContext() async {
+    try {
+      await _controller.runJavaScript(
+        "window.chartLbank && window.chartLbank.setSymbol(" +
+        "'${_selectedSymbol}.P · ${_selectedLBankTimeframe}');",
+      );
+    } catch (_) {
+      // The page may still be loading; the next chart reload will restore it.
+    }
   }
 
   Future<void> _reloadLBankChart() async {
@@ -646,8 +579,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
                     onSelected: (_) {
                       if (selected) return;
                       setState(() => _selectedLBankTimeframe = value);
-                      _reloadTradingView();
-                      _reloadLBankChart();
+                      _updateLightweightChartContext();
                     },
                     selectedColor: _green.withValues(alpha: 0.22),
                     backgroundColor: _surface,
@@ -724,7 +656,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _buildInstrumentSelector(),
         const SizedBox(height: 8),
-        _buildAnalysisTools(),
         const SizedBox(height: 10),
         Row(children: [
           const Expanded(
@@ -744,16 +675,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
           height: 430,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                WebViewWidget(controller: _lbankChartController),
-                ChartDrawingCanvas(
-                  tool: _selectedDrawingTool,
-                  storageScope: '$_selectedSymbol-$_selectedLBankTimeframe',
-                ),
-              ],
-            ),
+            child: WebViewWidget(controller: _lbankChartController),
           ),
         ),
         const SizedBox(height: 14),
