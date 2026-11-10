@@ -697,7 +697,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       );
 
   Widget _buildLBankTab() {
-remove LBank duplicate timeframe selector    final q = _quote;
+final q = _quote;
     final positive = q != null && q.lastPrice >= q.openPrice;
     return Container(
       color: _background,
@@ -715,7 +715,18 @@ remove LBank duplicate timeframe selector    final q = _quote;
           height: 430,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: WebViewWidget(controller: _lbankChartController),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                WebViewWidget(controller: _lbankChartController),
+                ChartDrawingCanvas(
+                  key: ValueKey('$_selectedSymbol|$_selectedLBankTimeframe'),
+                  tool: _selectedDrawingTool,
+                  symbol: _selectedSymbol,
+                  timeframe: _selectedLBankTimeframe,
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 14),
