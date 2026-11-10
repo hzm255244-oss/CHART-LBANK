@@ -217,13 +217,13 @@ class LBankFuturesService {
     if (gold == null) {
       final available = rows
           .map((e) => (e['symbol'] ?? '').toString())
-          .where((s) => s.toUpperCase().contains('GOLD'))
+          .where((s) => s.toUpperCase().contains(symbol.toUpperCase()))
           .take(10)
           .join(', ');
       throw Exception(
         available.isEmpty
             ? 'قرارداد $symbol در گروه $_productGroup پیدا نشد.'
-            : 'نمادهای GOLD برگشتی: $available',
+            : 'نمادهای مشابه برگشتی: $available',
       );
     }
 
