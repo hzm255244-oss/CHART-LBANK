@@ -19,6 +19,26 @@ class _ChartPageState extends State<ChartPage>
   Timer? _refreshTimer;
   LBankFuturesQuote? _quote;
   bool _quoteLoading = false;
+  String _selectedLBankTimeframe = '15m';
+
+  static const List<Map<String, String>> _lbankTimeframes = [
+    {'label': '1m', 'value': '1m'},
+    {'label': '3m', 'value': '3m'},
+    {'label': '5m', 'value': '5m'},
+    {'label': '15m', 'value': '15m'},
+    {'label': '30m', 'value': '30m'},
+    {'label': '1h', 'value': '1h'},
+    {'label': '2h', 'value': '2h'},
+    {'label': '4h', 'value': '4h'},
+    {'label': '6h', 'value': '6h'},
+    {'label': '8h', 'value': '8h'},
+    {'label': '12h', 'value': '12h'},
+    {'label': '1D', 'value': '1d'},
+    {'label': '3D', 'value': '3d'},
+    {'label': '1W', 'value': '1w'},
+    {'label': '1M', 'value': '1M'},
+  ];
+
   String? _quoteError;
   bool _isLoading = true;
   String _errorMessage = '';
@@ -183,12 +203,43 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       );
 
   Widget _buildLBankTab() {
+    final timeframeSelector = SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _lbankTimeframes.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final item = _lbankTimeframes[index];
+          final value = item['value']!;
+          final selected = value == _selectedLBankTimeframe;
+          return ChoiceChip(
+            label: Text(item['label']!),
+            selected: selected,
+            onSelected: (_) => setState(() => _selectedLBankTimeframe = value),
+            selectedColor: _green.withValues(alpha: 0.22),
+            backgroundColor: _surface,
+            labelStyle: TextStyle(
+              color: selected ? _green : Colors.white70,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            ),
+            side: BorderSide(
+              color: selected ? _green : Colors.white12,
+            ),
+          );
+        },
+      ),
+    );
+
     final q = _quote;
     final positive = q != null && q.lastPrice >= q.openPrice;
     return Container(
       color: _background,
       padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        timeframeSelector,
+        const SizedBox(height: 12),
+
         Row(children: [
           const Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -245,7 +296,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
               border: Border.all(color: Colors.white12),
             ),
             child: const Text(
-              'اتصال قیمت لحظه‌ای Futures برقرار است. این اطلاعات، آمار ۲۴ ساعته بازار است و کندل ۱۵ دقیقه‌ای محسوب نمی‌شود. مسیر رسمی کندل تاریخی/وب‌سوکت قرارداد باید جداگانه تأیید شود؛ تا آن زمان نمودار کندلی نمایش داده نمی‌شود.',
+              'تایم‌فریم انتخاب‌شده: $_selectedLBankTimeframe. قیمت بالا، داده زنده بازار Futures است؛ اما API رسمی کندل تاریخی/وب‌سوکت برای این قرارداد هنوز تأیید نشده، بنابراین انتخاب تایم‌فریم فعلاً فقط تنظیم رابط است و کندل ساختگی نمایش داده نمی‌شود.',
               style: TextStyle(color: Colors.white70, height: 1.6),
             ),
           ),
