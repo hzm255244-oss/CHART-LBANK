@@ -121,7 +121,7 @@ class LBankFuturesService {
     return instruments;
   }
 
-  Future<LBankContractInfo> fetchGoldContractInfo() async {
+  Future<LBankContractInfo> fetchContractInfo(String symbol) async {
     final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/instrument')
         .replace(queryParameters: {'productGroup': _productGroup});
     final response = await http.get(uri).timeout(const Duration(seconds: 15));
@@ -140,17 +140,17 @@ class LBankFuturesService {
         ? data['list'] as List : [data]);
     for (final row in rows.whereType<Map>()) {
       final symbol = (row['symbol'] ?? '').toString().toUpperCase();
-      if (symbol == _targetSymbol || symbol == 'GOLDUSDT.P') {
+      if (symbol == symbol.toUpperCase() || symbol == '${symbol.toUpperCase()}.P') {
         return LBankContractInfo.fromJson(Map<String, dynamic>.from(row));
       }
     }
-    throw Exception('مشخصات قرارداد $_targetSymbol در گروه $_productGroup پیدا نشد.');
+    throw Exception('مشخصات قرارداد $symbol در گروه $_productGroup پیدا نشد.');
   }
 
-  Future<LBankOrderBook> fetchGoldOrderBook({int depth = 20}) async {
+  Future<LBankOrderBook> fetchOrderBook(String symbol, {int depth = 20}) async {
     final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/marketOrder')
         .replace(queryParameters: {
-      'symbol': _targetSymbol,
+      'symbol': symbol,
       'depth': depth.toString(),
     });
     final response = await http.get(uri).timeout(const Duration(seconds: 15));
@@ -183,14 +183,14 @@ class LBankFuturesService {
     bids.sort((a, b) => b.price.compareTo(a.price));
     asks.sort((a, b) => a.price.compareTo(b.price));
     return LBankOrderBook(
-      symbol: _targetSymbol,
+      symbol: symbol,
       bids: bids.take(depth).toList(),
       asks: asks.take(depth).toList(),
       fetchedAt: DateTime.now(),
     );
   }
 
-  Future<LBankFuturesQuote> fetchGoldQuote() async {
+  Future<LBankFuturesQuote> fetchQuote(String symbol) async {
     final uri = Uri.parse('$_baseUrl/cfd/openApi/v1/pub/marketData')
         .replace(queryParameters: {'productGroup': _productGroup});
 
@@ -208,7 +208,7 @@ class LBankFuturesService {
     Map<String, dynamic>? gold;
     for (final row in rows) {
       final symbol = (row['symbol'] ?? '').toString().toUpperCase();
-      if (symbol == _targetSymbol || symbol == 'GOLDUSDT.P') {
+      if (symbol == symbol.toUpperCase() || symbol == '${symbol.toUpperCase()}.P') {
         gold = row;
         break;
       }
@@ -222,17 +222,23 @@ class LBankFuturesService {
           .join(', ');
       throw Exception(
         available.isEmpty
-            ? 'قرارداد GOLDUSDT در گروه $_productGroup پیدا نشد.'
+            ? 'قرارداد $symbol در گروه $_productGroup پیدا نشد.'
             : 'نمادهای GOLD برگشتی: $available',
       );
     }
 
     final quote = LBankFuturesQuote.fromJson(gold);
     if (quote.lastPrice <= 0) {
-      throw Exception('قیمت معتبر برای قرارداد GOLD از LBank دریافت نشد.');
+      throw Exception('قیمت معتبر برای قرارداد $symbol از LBank دریافت نشد.');
     }
     return quote;
   }
+
+
+  Future<LBankContractInfo> fetchGoldContractInfo() => fetchContractInfo(_targetSymbol);
+  Future<LBankOrderBook> fetchGoldOrderBook({int depth = 20}) =>
+      fetchOrderBook(_targetSymbol, depth: depth);
+  Future<LBankFuturesQuote> fetchGoldQuote() => fetchQuote(_targetSymbol);
 
   List<Map<String, dynamic>> _extractRows(dynamic decoded) {
     dynamic value = decoded;
