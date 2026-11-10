@@ -19,6 +19,9 @@ class _ChartPageState extends State<ChartPage>
   Timer? _refreshTimer;
   LBankFuturesQuote? _quote;
   LBankOrderBook? _orderBook;
+  LBankContractInfo? _contractInfo;
+  bool _contractLoading = false;
+  String? _contractError;
   bool _quoteLoading = false;
   bool _bookLoading = false;
   String? _bookError;
@@ -76,10 +79,11 @@ class _ChartPageState extends State<ChartPage>
     if (_tabController.index == 1) {
       _loadLBankQuote();
       _loadOrderBook();
+      _loadContractInfo();
       _refreshTimer ??= Timer.periodic(
         const Duration(seconds: 10),
         (_) {
-          if (mounted && _tabController.index == 1) { _loadLBankQuote(); _loadOrderBook(); }
+          if (mounted && _tabController.index == 1) { _loadLBankQuote(); _loadOrderBook(); _loadContractInfo(); }
         },
       );
     } else {
@@ -107,6 +111,64 @@ class _ChartPageState extends State<ChartPage>
   }
 
 
+
+  Future<void> _loadContractInfo() async {
+    if (_contractLoading) return;
+    setState(() { _contractLoading = true; _contractError = null; });
+    try {
+      final result = await _lbankService.fetchGoldContractInfo();
+      if (!mounted) return;
+      setState(() => _contractInfo = result);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _contractError = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _contractLoading = false);
+    }
+  }
+
+  Widget _buildContractInfo() {
+    final info = _contractInfo;
+    return Container(
+      margin: const EdgeInsets.only(top: 12), padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          const Expanded(child: Text('مشخصات قرارداد',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+          if (_contractLoading) const SizedBox(width: 14, height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+          IconButton(visualDensity: VisualDensity.compact,
+            onPressed: _contractLoading ? null : _loadContractInfo,
+            icon: const Icon(Icons.refresh, size: 18, color: Colors.white70)),
+        ]),
+        if (info != null) ...[
+          _contractRow('نماد', info.symbol),
+          _contractRow('ارز پایه / قیمت', '${info.baseCurrency} / ${info.priceCurrency}'),
+          _contractRow('گام قیمت', info.priceTick.toString()),
+          _contractRow('گام حجم', info.volumeTick.toString()),
+          _contractRow('ضریب قرارداد', info.volumeMultiple.toString()),
+          _contractRow('حداقل حجم سفارش', info.minOrderVolume.toString()),
+          _contractRow('حداکثر حجم سفارش', info.maxOrderVolume.toString()),
+          _contractRow('حداقل ارزش سفارش', info.minOrderCost.toString()),
+          _contractRow('اهرم پیش‌فرض', info.defaultLeverage.toString()),
+        ] else if (_contractError != null)
+          Text(_contractError!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11))
+        else
+          const Text('در انتظار دریافت مشخصات قرارداد…',
+            style: TextStyle(color: Colors.white54, fontSize: 11)),
+      ]),
+    );
+  }
+
+  Widget _contractRow(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(children: [
+      Expanded(child: Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11))),
+      Text(value, style: const TextStyle(color: Colors.white, fontSize: 11)),
+    ]),
+  );
 
   Future<void> _loadOrderBook() async {
     if (_bookLoading) return;
@@ -545,7 +607,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
           const Center(child: Padding(padding: EdgeInsets.all(28),
             child: CircularProgressIndicator(color: _green))),
         ],
-        if (q != null) ...[const SizedBox(height: 14), _buildOrderBook()],
+        if (q != null) ...[const SizedBox(height: 14), _buildOrderBook(), _buildContractInfo()],
         const Text(
           'منبع: API عمومی Contract Futures صرافی LBank',
           textAlign: TextAlign.center,
