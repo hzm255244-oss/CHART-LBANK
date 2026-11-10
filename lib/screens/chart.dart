@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/lbank_service.dart';
+import '../widgets/chart_drawing_canvas.dart';
 
 class ChartPage extends StatefulWidget {
   const ChartPage({super.key});
@@ -571,6 +572,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
         timeframeSelector,
         const SizedBox(height: 12),
         _buildAnalysisTools(),
+        const SizedBox(height: 10),
+        const Text('بوم ترسیم مستقل — در انتظار اتصال کندل Futures',
+          style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        ChartDrawingCanvas(tool: _selectedDrawingTool),
+        const SizedBox(height: 14),
 
         Row(children: [
           const Expanded(
