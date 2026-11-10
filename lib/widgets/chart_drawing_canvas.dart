@@ -46,7 +46,7 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
             IconButton(tooltip: 'پاک‌کردن ترسیمات', visualDensity: VisualDensity.compact,
               onPressed: _drawings.isEmpty ? null : () => setState(() => _drawings.clear()),
               icon: const Icon(Icons.delete_outline, color: Colors.white70, size: 19)),
-            Text('\${_drawings.length} ترسیم', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+            Text('${_drawings.length} ترسیم', style: const TextStyle(color: Colors.white54, fontSize: 10)),
           ])),
           if (widget.tool == 'pointer')
             const Positioned(left: 0, right: 0, bottom: 10,
@@ -91,7 +91,7 @@ class _ChartDrawingPainter extends CustomPainter {
           break;
         case 'ruler':
           canvas.drawLine(a,b,Paint()..color=Colors.orangeAccent..strokeWidth=1.7);
-          final tp=TextPainter(text: TextSpan(text:'\${((b-a).distance/size.height*100).toStringAsFixed(1)}% ارتفاع بوم',
+          final tp=TextPainter(text: TextSpan(text:'${((b-a).distance/size.height*100).toStringAsFixed(1)}% ارتفاع بوم',
             style: const TextStyle(color:Colors.orangeAccent,fontSize:10)),textDirection:TextDirection.rtl)..layout();
           tp.paint(canvas,Offset((a.dx+b.dx)/2,(a.dy+b.dy)/2)+const Offset(4,4));
           break;
