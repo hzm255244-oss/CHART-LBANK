@@ -171,9 +171,9 @@ class _ChartPageState extends State<ChartPage>
             style: const TextStyle(color: Colors.white38, fontSize: 10)),
           const SizedBox(height: 10),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _bookSide('خریداران (Bid)', book.bids, _green),
+            _bookSide('Bids', book.bids, _green),
             const SizedBox(width: 12),
-            _bookSide('فروشندگان (Ask)', book.asks, _red),
+            _bookSide('Asks', book.asks, _red),
           ]),
         ] else if (_bookError != null)
           Text(_bookError!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11))
@@ -467,7 +467,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
     return Container(
       color: _background,
       padding: const EdgeInsets.all(14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         timeframeSelector,
         const SizedBox(height: 12),
         _buildAnalysisTools(),
@@ -542,20 +542,16 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
           OutlinedButton(
               onPressed: _loadLBankQuote, child: const Text('تلاش مجدد')),
         ] else ...[
-          const Expanded(
-            child: Center(
-              child: CircularProgressIndicator(color: _green),
-            ),
-          ),
+          const Center(child: Padding(padding: EdgeInsets.all(28),
+            child: CircularProgressIndicator(color: _green))),
         ],
         if (q != null) ...[const SizedBox(height: 14), _buildOrderBook()],
-        if (q != null) const Spacer(),
         const Text(
           'منبع: API عمومی Contract Futures صرافی LBank',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white38, fontSize: 10),
         ),
-      ]),
+      ])),
     );
   }
 
