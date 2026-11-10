@@ -490,6 +490,8 @@ class _ChartPageState extends State<ChartPage>
     ]),
   );
 
+  Uri get _lbankFuturesPageUri => Uri.parse('https://www.lbank.com/futures/${_selectedSymbol.toLowerCase()}');
+
   String get _tradingViewSymbol {
     final normalized = _selectedSymbol.toUpperCase().replaceAll(
       RegExp(r'\.P$'), '',
@@ -523,7 +525,7 @@ class _ChartPageState extends State<ChartPage>
 
   void _initializeLBankChart() {
     _lbankChartController = _createChartController();
-    _lbankChartController.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+    _lbankChartController.loadRequest(_lbankFuturesPageUri);
   }
 
   WebViewController _createChartController() => WebViewController()
@@ -595,7 +597,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
   }
 
   Future<void> _reloadLBankChart() async {
-    await _lbankChartController.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+    if (!mounted) return;
+    await _lbankChartController.loadRequest(_lbankFuturesPageUri);
   }
 
   Widget _buildTradingViewTab() => Column(
@@ -694,40 +697,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       );
 
   Widget _buildLBankTab() {
-    final timeframeSelector = SizedBox(
-      height: 42,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _lbankTimeframes.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
-        itemBuilder: (context, index) {
-          final item = _lbankTimeframes[index];
-          final value = item['value']!;
-          final selected = value == _selectedLBankTimeframe;
-          return ChoiceChip(
-            label: Text(item['label']!),
-            selected: selected,
-            onSelected: (_) {
-              if (selected) return;
-              setState(() => _selectedLBankTimeframe = value);
-              _reloadTradingView();
-              _reloadLBankChart();
-            },
-            selectedColor: _green.withValues(alpha: 0.22),
-            backgroundColor: _surface,
-            labelStyle: TextStyle(
-              color: selected ? _green : Colors.white70,
-              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-            ),
-            side: BorderSide(
-              color: selected ? _green : Colors.white12,
-            ),
-          );
-        },
-      ),
-    );
-
-    final q = _quote;
+remove LBank duplicate timeframe selector    final q = _quote;
     final positive = q != null && q.lastPrice >= q.openPrice;
     return Container(
       color: _background,
@@ -735,11 +705,10 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _buildInstrumentSelector(),
         const SizedBox(height: 10),
-        timeframeSelector,
         const SizedBox(height: 12),
         _buildAnalysisTools(),
         const SizedBox(height: 10),
-        const Text('نمودار قرارداد Futures از منبع TradingView',
+        const Text('صفحه رسمی معاملات Futures در LBank',
           style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
         SizedBox(
