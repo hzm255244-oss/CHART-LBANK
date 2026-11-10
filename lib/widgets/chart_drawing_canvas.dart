@@ -21,6 +21,9 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
   Offset? _start;
   Offset? _current;
   bool _loaded = false;
+  int? _selectedIndex;
+  Offset? _moveOrigin;
+  _Drawing? _moveDrawing;
 
   String get _storageKey =>
       'lbank_chart_drawings_v2_${widget.storageScope}';
@@ -109,8 +112,24 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
     _persistDrawings();
   }
 
+  int? _hitTest(Offset point, Size size) {
+    const tolerance = 18.0;
+    for (var i = _drawings.length - 1; i >= 0; i--) {
+      final d = _drawings[i];
+      final a = Offset(d.start.dx * size.width, d.start.dy * size.height);
+      final b = Offset(d.end.dx * size.width, d.end.dy * size.height);
+      final rect = Rect.fromPoints(a, b).inflate(tolerance);
+      if (rect.contains(point) || (point - a).distance <= tolerance ||
+          (point - b).distance <= tolerance) return i;
+    }
+    return null;
+  }
+
   void _onTap(Offset point, Size size) {
-    if (widget.tool == 'pointer') return;
+    if (widget.tool == 'pointer') {
+      setState(() => _selectedIndex = _hitTest(point, size));
+      return;
+    }
     if (widget.tool == 'text') {
       _addText(point, size);
       return;
@@ -124,8 +143,16 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
   }
 
   void _onPanStart(DragStartDetails details, Size size) {
-    if (widget.tool == 'pointer' || widget.tool == 'text' ||
-        widget.tool == 'pin') return;
+    if (widget.tool == 'pointer') {
+      final index = _hitTest(details.localPosition, size);
+      setState(() {
+        _selectedIndex = index;
+        _moveOrigin = details.localPosition;
+        _moveDrawing = index == null ? null : _drawings[index];
+      });
+      return;
+    }
+    if (widget.tool == 'text' || widget.tool == 'pin') return;
     setState(() {
       _start = _normalize(details.localPosition, size);
       _current = _start;
@@ -133,11 +160,36 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
   }
 
   void _onPanUpdate(DragUpdateDetails details, Size size) {
+    if (widget.tool == 'pointer' && _moveOrigin != null &&
+        _moveDrawing != null && _selectedIndex != null) {
+      final delta = details.localPosition - _moveOrigin!;
+      final original = _moveDrawing!;
+      final dx = delta.dx / size.width;
+      final dy = delta.dy / size.height;
+      final moved = _Drawing(
+        original.tool,
+        Offset((original.start.dx + dx).clamp(0.0, 1.0),
+            (original.start.dy + dy).clamp(0.0, 1.0)),
+        Offset((original.end.dx + dx).clamp(0.0, 1.0),
+            (original.end.dy + dy).clamp(0.0, 1.0)),
+        label: original.label,
+      );
+      setState(() => _drawings[_selectedIndex!] = moved);
+      _moveOrigin = details.localPosition;
+      _moveDrawing = moved;
+      return;
+    }
     if (_start == null) return;
     setState(() => _current = _normalize(details.localPosition, size));
   }
 
   void _onPanEnd(DragEndDetails details) {
+    if (widget.tool == 'pointer') {
+      if (_moveDrawing != null) _persistDrawings();
+      _moveOrigin = null;
+      _moveDrawing = null;
+      return;
+    }
     if (_start == null || _current == null) return;
     setState(() {
       _drawings.add(_Drawing(widget.tool, _start!, _current!));
@@ -152,9 +204,7 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
     return LayoutBuilder(builder: (context, constraints) {
       final size = Size(constraints.maxWidth, constraints.maxHeight);
       if (!_loaded) return const SizedBox.expand();
-      return IgnorePointer(
-        ignoring: widget.tool == 'pointer',
-        child: GestureDetector(
+      return GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTapDown: (details) => _onTap(details.localPosition, size),
           onPanStart: (details) => _onPanStart(details, size),
@@ -166,6 +216,7 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
               CustomPaint(
                 painter: _ChartDrawingPainter(
                   drawings: _drawings,
+                  selectedIndex: _selectedIndex,
                   preview: _start != null && _current != null
                       ? _Drawing(widget.tool, _start!, _current!)
                       : null,
@@ -209,7 +260,6 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
               ),
             ],
           ),
-        ),
       );
     });
   }
@@ -243,8 +293,11 @@ class _Drawing {
 class _ChartDrawingPainter extends CustomPainter {
   final List<_Drawing> drawings;
   final _Drawing? preview;
+  final int? selectedIndex;
 
-  const _ChartDrawingPainter({required this.drawings, this.preview});
+  const _ChartDrawingPainter({
+    required this.drawings, this.preview, this.selectedIndex,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -308,6 +361,19 @@ class _ChartDrawingPainter extends CustomPainter {
           canvas.drawCircle(a, 7, Paint()..color = const Color(0xFFFFC857));
           canvas.drawCircle(a, 3, Paint()..color = const Color(0xFF131722));
           break;
+      }
+      final index = drawings.indexOf(drawing);
+      if (index == selectedIndex) {
+        final handle = Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(a, 4, handle);
+        canvas.drawCircle(b, 4, handle);
+        final outline = Paint()
+          ..color = const Color(0xFFFFC857)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2;
+        canvas.drawRect(Rect.fromPoints(a, b).inflate(5), outline);
       }
     }
   }
