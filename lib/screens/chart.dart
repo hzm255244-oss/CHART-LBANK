@@ -21,6 +21,10 @@ class _ChartPageState extends State<ChartPage>
   LBankFuturesQuote? _quote;
   LBankOrderBook? _orderBook;
   LBankContractInfo? _contractInfo;
+  List<LBankFuturesInstrument> _instruments = [];
+  String _selectedSymbol = 'GOLDUSDT';
+  bool _instrumentsLoading = false;
+  String? _instrumentsError;
   bool _contractLoading = false;
   String? _contractError;
   bool _quoteLoading = false;
@@ -78,6 +82,7 @@ class _ChartPageState extends State<ChartPage>
   void _handleTabChange() {
     if (_tabController.indexIsChanging) return;
     if (_tabController.index == 1) {
+      _loadInstruments();
       _loadLBankQuote();
       _loadOrderBook();
       _loadContractInfo();
@@ -93,6 +98,64 @@ class _ChartPageState extends State<ChartPage>
     }
   }
 
+  Future<void> _loadInstruments() async {
+    if (_instrumentsLoading) return;
+    setState(() { _instrumentsLoading = true; _instrumentsError = null; });
+    try {
+      final result = await _lbankService.fetchAllFuturesInstruments();
+      if (!mounted) return;
+      setState(() {
+        _instruments = result;
+        if (!_instruments.any((e) => e.symbol.toUpperCase() == _selectedSymbol.toUpperCase())) {
+          _selectedSymbol = _instruments.first.symbol;
+        }
+      });
+      _loadLBankQuote(); _loadOrderBook(); _loadContractInfo();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _instrumentsError = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _instrumentsLoading = false);
+    }
+  }
+
+  Widget _buildInstrumentSelector() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        const Expanded(child: Text('قرارداد Futures',
+          style: TextStyle(color: Colors.white70, fontSize: 12))),
+        if (_instrumentsLoading) const SizedBox(width: 14, height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2)),
+        IconButton(visualDensity: VisualDensity.compact,
+          onPressed: _instrumentsLoading ? null : _loadInstruments,
+          icon: const Icon(Icons.refresh, color: Colors.white70, size: 18)),
+      ]),
+      if (_instrumentsError != null)
+        Text(_instrumentsError!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)),
+      DropdownButtonFormField<String>(
+        value: _instruments.any((e) => e.symbol == _selectedSymbol) ? _selectedSymbol : null,
+        isExpanded: true, dropdownColor: _surface,
+        style: const TextStyle(color: Colors.white),
+        decoration: const InputDecoration(filled: true, fillColor: _surface,
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+        hint: const Text('انتخاب نماد از فهرست قراردادهای LBank',
+          style: TextStyle(color: Colors.white54, fontSize: 12)),
+        items: _instruments.map((item) => DropdownMenuItem<String>(
+          value: item.symbol,
+          child: Text('${item.symbol} · ${item.symbolName}', overflow: TextOverflow.ellipsis),
+        )).toList(),
+        onChanged: (value) {
+          if (value == null || value == _selectedSymbol) return;
+          setState(() { _selectedSymbol = value; _quote = null; _orderBook = null; _contractInfo = null; });
+          _loadLBankQuote(); _loadOrderBook(); _loadContractInfo();
+        },
+      ),
+      Text('${_instruments.length} قرارداد در فهرست دریافت‌شده',
+        style: const TextStyle(color: Colors.white38, fontSize: 10)),
+    ]);
+  }
+
   Future<void> _loadLBankQuote() async {
     if (_quoteLoading) return;
     setState(() {
@@ -100,7 +163,7 @@ class _ChartPageState extends State<ChartPage>
       _quoteError = null;
     });
     try {
-      final result = await _lbankService.fetchGoldQuote();
+      final result = await _lbankService.fetchQuote(_selectedSymbol);
       if (!mounted) return;
       setState(() => _quote = result);
     } catch (e) {
@@ -117,7 +180,7 @@ class _ChartPageState extends State<ChartPage>
     if (_contractLoading) return;
     setState(() { _contractLoading = true; _contractError = null; });
     try {
-      final result = await _lbankService.fetchGoldContractInfo();
+      final result = await _lbankService.fetchContractInfo(_selectedSymbol);
       if (!mounted) return;
       setState(() => _contractInfo = result);
     } catch (e) {
@@ -175,7 +238,7 @@ class _ChartPageState extends State<ChartPage>
     if (_bookLoading) return;
     setState(() { _bookLoading = true; _bookError = null; });
     try {
-      final result = await _lbankService.fetchGoldOrderBook();
+      final result = await _lbankService.fetchOrderBook(_selectedSymbol);
       if (!mounted) return;
       setState(() => _orderBook = result);
     } catch (e) {
@@ -569,6 +632,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       color: _background,
       padding: const EdgeInsets.all(14),
       child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _buildInstrumentSelector(),
+        const SizedBox(height: 10),
         timeframeSelector,
         const SizedBox(height: 12),
         _buildAnalysisTools(),
@@ -582,7 +647,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
         Row(children: [
           const Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('GOLDUSDT Futures',
+              Text('$_selectedSymbol Futures',
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
