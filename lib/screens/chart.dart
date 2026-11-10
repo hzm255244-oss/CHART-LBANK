@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/lbank_service.dart';
 import '../widgets/chart_drawing_canvas.dart';
+import '../widgets/pnl_fibonacci_tool.dart';
 
 class ChartPage extends StatefulWidget {
   const ChartPage({super.key});
@@ -37,12 +38,14 @@ class _ChartPageState extends State<ChartPage>
 
   static const List<Map<String, String>> _drawingTools = [
     {'id': 'pointer', 'label': 'انتخاب', 'icon': '☝'},
-    {'id': 'trend', 'label': 'خط روند', 'icon': '／'},
-    {'id': 'horizontal', 'label': 'خط افقی', 'icon': '—'},
-    {'id': 'vertical', 'label': 'خط عمودی', 'icon': '│'},
-    {'id': 'rectangle', 'label': 'مستطیل', 'icon': '▭'},
-    {'id': 'fib', 'label': 'فیبوناچی', 'icon': 'F'},
-    {'id': 'ruler', 'label': 'خط‌کش', 'icon': '↔'},
+    {'id': 'measure', 'label': 'Measure', 'icon': '↔'},
+    {'id': 'trendline', 'label': 'Trendline', 'icon': '／'},
+    {'id': 'crossline', 'label': 'Crossline', 'icon': '＋'},
+    {'id': 'fibchannel', 'label': 'Fib Channel', 'icon': '▤'},
+    {'id': 'fib_retracement', 'label': 'Fib Retracement', 'icon': 'F'},
+    {'id': 'date_price_range', 'label': 'Date & Price Range', 'icon': '↗'},
+    {'id': 'text', 'label': 'Text', 'icon': 'T'},
+    {'id': 'pin', 'label': 'Pin', 'icon': '📍'},
   ];
 
   static const List<Map<String, String>> _lbankTimeframes = [
@@ -442,6 +445,17 @@ class _ChartPageState extends State<ChartPage>
         ),
       );
 
+  void _showPnlFibonacciTool() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => PnlFibonacciTool(
+        initialPrice: _quote?.lastPrice ?? 0,
+      ),
+    );
+  }
+
   Widget _buildAnalysisTools() => Container(
     margin: const EdgeInsets.only(bottom: 12),
     padding: const EdgeInsets.all(10),
@@ -472,6 +486,11 @@ class _ChartPageState extends State<ChartPage>
       const SizedBox(height: 8),
       Wrap(spacing: 8, children: [
         OutlinedButton.icon(
+          onPressed: _showPnlFibonacciTool,
+          icon: const Icon(Icons.show_chart, size: 16),
+          label: const Text('PnL Fibonacci'),
+        ),
+        OutlinedButton.icon(
           onPressed: _showRiskRewardCalculator,
           icon: const Icon(Icons.calculate_outlined, size: 16),
           label: const Text('ریسک به ریوارد')),
@@ -484,8 +503,8 @@ class _ChartPageState extends State<ChartPage>
           labelStyle: const TextStyle(color: Colors.white70, fontSize: 11)),
       ]),
       Text(_selectedDrawingTool == 'pointer'
-        ? 'ابزار انتخاب فعال است.'
-        : 'ابزار انتخاب‌شده: ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']}. برای رسم روی نمودار، ابتدا باید بوم کندلی مستقل فعال شود.',
+        ? 'انتخاب و جابه‌جایی ترسیمات؛ برای حرکت دادن نمودار، از کنترل‌های خود نمودار استفاده کن.'
+        : 'ابزار ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']} فعال است. ترسیم روی نمودار نمایش داده و برای همین نماد و تایم‌فریم ذخیره می‌شود. اتصال دقیق به قیمت و زمان کندل هنوز فعال نیست.',
         style: const TextStyle(color: Colors.white54, fontSize: 10)),
     ]),
   );
@@ -697,25 +716,44 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       );
 
   Widget _buildLBankTab() {
-remove LBank duplicate timeframe selector    final q = _quote;
+    final q = _quote;
     final positive = q != null && q.lastPrice >= q.openPrice;
     return Container(
       color: _background,
       padding: const EdgeInsets.all(14),
       child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _buildInstrumentSelector(),
-        const SizedBox(height: 10),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _buildAnalysisTools(),
         const SizedBox(height: 10),
-        const Text('صفحه رسمی معاملات Futures در LBank',
-          style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 6),
+        Row(children: [
+          const Expanded(
+            child: Text('نمودار زنده LBank Futures',
+              style: TextStyle(color: Colors.white70, fontSize: 12,
+                fontWeight: FontWeight.bold)),
+          ),
+          IconButton(
+            tooltip: 'بارگذاری مجدد نمودار',
+            visualDensity: VisualDensity.compact,
+            onPressed: _reloadLBankChart,
+            icon: const Icon(Icons.refresh, color: Colors.white70, size: 19),
+          ),
+        ]),
+        const SizedBox(height: 4),
         SizedBox(
           height: 430,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: WebViewWidget(controller: _lbankChartController),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                WebViewWidget(controller: _lbankChartController),
+                ChartDrawingCanvas(
+                  tool: _selectedDrawingTool,
+                  storageScope: '$_selectedSymbol-$_selectedLBankTimeframe',
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 14),
