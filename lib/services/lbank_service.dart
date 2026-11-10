@@ -139,8 +139,8 @@ class LBankFuturesService {
     final rows = data is List ? data : (data is Map && data['list'] is List
         ? data['list'] as List : [data]);
     for (final row in rows.whereType<Map>()) {
-      final symbol = (row['symbol'] ?? '').toString().toUpperCase();
-      if (symbol == symbol.toUpperCase() || symbol == '${symbol.toUpperCase()}.P') {
+      final candidate = (row['symbol'] ?? '').toString().toUpperCase();
+      if (candidate == symbol.toUpperCase() || candidate == '${symbol.toUpperCase()}.P') {
         return LBankContractInfo.fromJson(Map<String, dynamic>.from(row));
       }
     }
@@ -207,8 +207,8 @@ class LBankFuturesService {
 
     Map<String, dynamic>? gold;
     for (final row in rows) {
-      final symbol = (row['symbol'] ?? '').toString().toUpperCase();
-      if (symbol == symbol.toUpperCase() || symbol == '${symbol.toUpperCase()}.P') {
+      final candidate = (row['symbol'] ?? '').toString().toUpperCase();
+      if (candidate == symbol.toUpperCase() || candidate == '${symbol.toUpperCase()}.P') {
         gold = row;
         break;
       }
