@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/lbank_service.dart';
-import '../widgets/chart_drawing_canvas.dart';
 import '../widgets/pnl_fibonacci_tool.dart';
 
 class ChartPage extends StatefulWidget {
@@ -33,20 +32,7 @@ class _ChartPageState extends State<ChartPage>
   bool _bookLoading = false;
   String? _bookError;
   String _selectedLBankTimeframe = '15m';
-  String _selectedDrawingTool = 'pointer';
   bool _showVolume = true;
-
-  static const List<Map<String, String>> _drawingTools = [
-    {'id': 'pointer', 'label': 'انتخاب', 'icon': '☝'},
-    {'id': 'measure', 'label': 'Measure', 'icon': '↔'},
-    {'id': 'trendline', 'label': 'Trendline', 'icon': '／'},
-    {'id': 'crossline', 'label': 'Crossline', 'icon': '＋'},
-    {'id': 'fibchannel', 'label': 'Fib Channel', 'icon': '▤'},
-    {'id': 'fib_retracement', 'label': 'Fib Retracement', 'icon': 'F'},
-    {'id': 'date_price_range', 'label': 'Date & Price Range', 'icon': '↗'},
-    {'id': 'text', 'label': 'Text', 'icon': 'T'},
-    {'id': 'pin', 'label': 'Pin', 'icon': '📍'},
-  ];
 
   static const List<Map<String, String>> _lbankTimeframes = [
     {'label': '1m', 'value': '1m'},
@@ -154,9 +140,14 @@ class _ChartPageState extends State<ChartPage>
         onChanged: (value) {
           if (value == null || value == _selectedSymbol) return;
           setState(() { _selectedSymbol = value; _quote = null; _orderBook = null; _contractInfo = null; });
-          _loadLBankQuote(); _loadOrderBook(); _loadContractInfo();
-          _reloadTradingView();
-          _reloadLBankChart();
+          if (_tabController.index == 0) {
+            _reloadTradingView();
+          } else {
+            _loadLBankQuote();
+            _loadOrderBook();
+            _loadContractInfo();
+            _reloadLBankChart();
+          }
         },
       ),
       Text('${_instruments.length} قرارداد در فهرست دریافت‌شده',
@@ -456,59 +447,6 @@ class _ChartPageState extends State<ChartPage>
     );
   }
 
-  Widget _buildAnalysisTools() => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(color: _surface,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: Colors.white12)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('ابزارهای تحلیل و ترسیم',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 8),
-      SizedBox(height: 38, child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: _drawingTools.map((tool) {
-          final selected = _selectedDrawingTool == tool['id'];
-          return Padding(padding: const EdgeInsets.only(right: 6),
-            child: ChoiceChip(
-              label: Text('${tool['icon']} ${tool['label']}'),
-              selected: selected,
-              onSelected: (_) => setState(
-                () => _selectedDrawingTool = tool['id']!),
-              selectedColor: _green.withValues(alpha: 0.2),
-              backgroundColor: _background,
-              labelStyle: TextStyle(
-                color: selected ? _green : Colors.white70, fontSize: 11),
-            ));
-        }).toList(),
-      )),
-      const SizedBox(height: 8),
-      Wrap(spacing: 8, children: [
-        OutlinedButton.icon(
-          onPressed: _showPnlFibonacciTool,
-          icon: const Icon(Icons.show_chart, size: 16),
-          label: const Text('PnL Fibonacci'),
-        ),
-        OutlinedButton.icon(
-          onPressed: _showRiskRewardCalculator,
-          icon: const Icon(Icons.calculate_outlined, size: 16),
-          label: const Text('ریسک به ریوارد')),
-        FilterChip(
-          label: const Text('نمایش حجم'),
-          selected: _showVolume,
-          onSelected: (v) => setState(() => _showVolume = v),
-          selectedColor: _green.withValues(alpha: 0.2),
-          checkmarkColor: _green,
-          labelStyle: const TextStyle(color: Colors.white70, fontSize: 11)),
-      ]),
-      Text(_selectedDrawingTool == 'pointer'
-        ? 'انتخاب و جابه‌جایی ترسیمات؛ برای حرکت دادن نمودار، از کنترل‌های خود نمودار استفاده کن.'
-        : 'ابزار ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']} فعال است. ترسیم روی نمودار نمایش داده و برای همین نماد و تایم‌فریم ذخیره می‌شود. اتصال دقیق به قیمت و زمان کندل هنوز فعال نیست.',
-        style: const TextStyle(color: Colors.white54, fontSize: 10)),
-    ]),
-  );
-
   Uri get _lbankFuturesPageUri => Uri.parse('https://www.lbank.com/futures/${_selectedSymbol.toLowerCase()}');
 
   String get _tradingViewSymbol {
@@ -650,7 +588,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
                       if (selected) return;
                       setState(() => _selectedLBankTimeframe = value);
                       _reloadTradingView();
-                      _reloadLBankChart();
                     },
                     selectedColor: _green.withValues(alpha: 0.22),
                     backgroundColor: _surface,
@@ -727,7 +664,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _buildInstrumentSelector(),
         const SizedBox(height: 8),
-        _buildAnalysisTools(),
         const SizedBox(height: 10),
         Row(children: [
           const Expanded(
@@ -747,16 +683,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
           height: 430,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                WebViewWidget(controller: _lbankChartController),
-                ChartDrawingCanvas(
-                  tool: _selectedDrawingTool,
-                  storageScope: '$_selectedSymbol-$_selectedLBankTimeframe',
-                ),
-              ],
-            ),
+            child: WebViewWidget(controller: _lbankChartController),
           ),
         ),
         const SizedBox(height: 14),
