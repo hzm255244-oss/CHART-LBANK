@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../services/lbank_service.dart';
 import '../widgets/pnl_fibonacci_tool.dart';
@@ -141,7 +142,7 @@ class _ChartPageState extends State<ChartPage>
           if (value == null || value == _selectedSymbol) return;
           setState(() { _selectedSymbol = value; _quote = null; _orderBook = null; _contractInfo = null; });
           if (_tabController.index == 0) {
-            _reloadTradingView();
+            _updateLightweightChartContext();
           } else {
             _loadLBankQuote();
             _loadOrderBook();
@@ -477,7 +478,23 @@ class _ChartPageState extends State<ChartPage>
 
   void _initializeTradingView() {
     _controller = _createChartController();
-    _controller.loadHtmlString(_buildTradingViewHtml(), baseUrl: 'https://www.tradingview.com');
+    _loadLightweightChart();
+  }
+
+  Future<void> _loadLightweightChart() async {
+    try {
+      final html = await rootBundle.loadString('assets/chart/lightweight_chart.html');
+      await _controller.loadHtmlString(
+        html,
+        baseUrl: 'https://unpkg.com/',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'خطا در بارگذاری نمودار جدید: $e';
+      });
+    }
   }
 
   void _initializeLBankChart() {
@@ -511,49 +528,24 @@ class _ChartPageState extends State<ChartPage>
       )
       ;
 
-  String _buildTradingViewHtml() => '''
-<!DOCTYPE html><html><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#131722}
-.tradingview-widget-container,.tradingview-widget-container__widget{width:100%;height:100%}
-</style></head><body>
-<div class="tradingview-widget-container">
-<div class="tradingview-widget-container__widget"></div>
-<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-{
-  "autosize":true,
-  "symbol":"$_tradingViewSymbol",
-  "interval":"$_tradingViewInterval",
-  "timezone":"Etc/UTC",
-  "theme":"dark",
-  "style":"1",
-  "locale":"fa",
-  "enable_publishing":false,
-  "allow_symbol_change":false,
-  "hide_top_toolbar":false,
-  "hide_side_toolbar":false,
-  "hide_legend":false,
-  "save_image":false,
-  "withdateranges":true,
-  "details":true,
-  "calendar":false,
-  "support_host":"https://www.tradingview.com"
-}
-</script></div></body></html>
-''';
-
   Future<void> _reloadTradingView() async {
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
-    await _controller.loadHtmlString(
-      _buildTradingViewHtml(),
-      baseUrl: 'https://www.tradingview.com',
-    );
+    await _loadLightweightChart();
+  }
+
+  Future<void> _updateLightweightChartContext() async {
+    try {
+      await _controller.runJavaScript(
+        "window.chartLbank && window.chartLbank.setSymbol(" +
+        "'${_selectedSymbol}.P · ${_selectedLBankTimeframe}');",
+      );
+    } catch (_) {
+      // The page may still be loading; the next chart reload will restore it.
+    }
   }
 
   Future<void> _reloadLBankChart() async {
@@ -587,7 +579,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
                     onSelected: (_) {
                       if (selected) return;
                       setState(() => _selectedLBankTimeframe = value);
-                      _reloadTradingView();
+                      _updateLightweightChartContext();
                     },
                     selectedColor: _green.withValues(alpha: 0.22),
                     backgroundColor: _surface,
