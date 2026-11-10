@@ -38,12 +38,14 @@ class _ChartPageState extends State<ChartPage>
 
   static const List<Map<String, String>> _drawingTools = [
     {'id': 'pointer', 'label': 'انتخاب', 'icon': '☝'},
-    {'id': 'trend', 'label': 'خط روند', 'icon': '／'},
-    {'id': 'horizontal', 'label': 'خط افقی', 'icon': '—'},
-    {'id': 'vertical', 'label': 'خط عمودی', 'icon': '│'},
-    {'id': 'rectangle', 'label': 'مستطیل', 'icon': '▭'},
-    {'id': 'fib', 'label': 'فیبوناچی', 'icon': 'F'},
-    {'id': 'ruler', 'label': 'خط‌کش', 'icon': '↔'},
+    {'id': 'measure', 'label': 'Measure', 'icon': '↔'},
+    {'id': 'trendline', 'label': 'Trendline', 'icon': '／'},
+    {'id': 'crossline', 'label': 'Crossline', 'icon': '＋'},
+    {'id': 'fibchannel', 'label': 'Fib Channel', 'icon': '▤'},
+    {'id': 'fib_retracement', 'label': 'Fib Retracement', 'icon': 'F'},
+    {'id': 'date_price_range', 'label': 'Date & Price Range', 'icon': '↗'},
+    {'id': 'text', 'label': 'Text', 'icon': 'T'},
+    {'id': 'pin', 'label': 'Pin', 'icon': '📍'},
   ];
 
   static const List<Map<String, String>> _lbankTimeframes = [
@@ -501,8 +503,8 @@ class _ChartPageState extends State<ChartPage>
           labelStyle: const TextStyle(color: Colors.white70, fontSize: 11)),
       ]),
       Text(_selectedDrawingTool == 'pointer'
-        ? 'ابزار انتخاب فعال است.'
-        : 'ابزار انتخاب‌شده: ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']}. برای رسم روی نمودار، ابتدا باید بوم کندلی مستقل فعال شود.',
+        ? 'حالت انتخاب فعال است؛ برای رسم، ابزار موردنظر را انتخاب کن.'
+        : 'ابزار ${_drawingTools.firstWhere((e) => e['id'] == _selectedDrawingTool)['label']} فعال است. ترسیم فعلی به‌صورت لایه تصویری روی پنجره نمودار ذخیره می‌شود و هنوز به مختصات قیمت/زمان کندل متصل نیست.',
         style: const TextStyle(color: Colors.white54, fontSize: 10)),
     ]),
   );
@@ -732,7 +734,16 @@ remove LBank duplicate timeframe selector    final q = _quote;
           height: 430,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: WebViewWidget(controller: _lbankChartController),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                WebViewWidget(controller: _lbankChartController),
+                ChartDrawingCanvas(
+                  tool: _selectedDrawingTool,
+                  storageScope: '$_selectedSymbol-$_selectedLBankTimeframe',
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 14),
