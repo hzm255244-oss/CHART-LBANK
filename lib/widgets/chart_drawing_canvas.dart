@@ -125,9 +125,51 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
     return null;
   }
 
+  Future<void> _editSelected() async {
+    final index = _selectedIndex;
+    if (index == null || index >= _drawings.length ||
+        _drawings[index].tool != 'text') return;
+    final drawing = _drawings[index];
+    final controller = TextEditingController(text: drawing.label ?? '');
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1E222D),
+        title: const Text('ویرایش متن',
+          style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('لغو')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('ذخیره')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null || !mounted) return;
+    setState(() {
+      if (value.isEmpty) {
+        _drawings.removeAt(index);
+        _selectedIndex = null;
+      } else {
+        _drawings[index] = _Drawing(
+          drawing.tool, drawing.start, drawing.end, label: value,
+        );
+      }
+    });
+    _persistDrawings();
+  }
+
   void _onTap(Offset point, Size size) {
     if (widget.tool == 'pointer') {
-      setState(() => _selectedIndex = _hitTest(point, size));
+      final hit = _hitTest(point, size);
+      setState(() => _selectedIndex = hit);
+      if (hit != null && _drawings[hit].tool == 'text') _editSelected();
       return;
     }
     if (widget.tool == 'text') {
@@ -222,6 +264,47 @@ class _ChartDrawingCanvasState extends State<ChartDrawingCanvas> {
                       : null,
                 ),
               ),
+              if (_selectedIndex != null && _selectedIndex! < _drawings.length)
+                Positioned(
+                  top: 2,
+                  left: 40,
+                  child: Material(
+                    color: Colors.black.withValues(alpha: .65),
+                    borderRadius: BorderRadius.circular(6),
+                    child: IconButton(
+                      tooltip: 'حذف ترسیم انتخاب‌شده',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
+                        setState(() {
+                          _drawings.removeAt(_selectedIndex!);
+                          _selectedIndex = null;
+                        });
+                        _persistDrawings();
+                      },
+                      icon: const Icon(Icons.delete, color: Colors.redAccent, size: 17),
+                    ),
+                  ),
+                ),
+              if (_selectedIndex != null && _selectedIndex! < _drawings.length &&
+                  _drawings[_selectedIndex!].tool == 'text')
+                Positioned(
+                  top: 2,
+                  left: 76,
+                  child: Material(
+                    color: Colors.black.withValues(alpha: .65),
+                    borderRadius: BorderRadius.circular(6),
+                    child: IconButton(
+                      tooltip: 'ویرایش متن انتخاب‌شده',
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      padding: EdgeInsets.zero,
+                      onPressed: _editSelected,
+                      icon: const Icon(Icons.edit, color: Colors.white, size: 17),
+                    ),
+                  ),
+                ),
               if (_drawings.isNotEmpty)
                 Positioned(
                   top: 4,
