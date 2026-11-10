@@ -715,35 +715,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
         ),
       );
 
-  Widget _buildLBankTimeframeSelector() => SizedBox(
-    height: 40,
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      itemCount: _lbankTimeframes.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 6),
-      itemBuilder: (context, index) {
-        final item = _lbankTimeframes[index];
-        final value = item['value']!;
-        final selected = value == _selectedLBankTimeframe;
-        return ChoiceChip(
-          label: Text(item['label']!),
-          selected: selected,
-          onSelected: (_) async {
-            if (selected) return;
-            setState(() => _selectedLBankTimeframe = value);
-            await _reloadLBankChart();
-          },
-          selectedColor: _green.withValues(alpha: .22),
-          backgroundColor: _surface,
-          labelStyle: TextStyle(
-            color: selected ? _green : Colors.white70,
-            fontSize: 11,
-          ),
-        );
-      },
-    ),
-  );
-
   Widget _buildLBankTab() {
     final q = _quote;
     final positive = q != null && q.lastPrice >= q.openPrice;
@@ -753,8 +724,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
       child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _buildInstrumentSelector(),
         const SizedBox(height: 8),
-        _buildLBankTimeframeSelector(),
-        const SizedBox(height: 10),
         _buildAnalysisTools(),
         const SizedBox(height: 10),
         Row(children: [
