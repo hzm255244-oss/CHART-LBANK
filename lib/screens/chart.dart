@@ -295,9 +295,9 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.white12),
             ),
-            child: const Text(
+            child: Text(
               'تایم‌فریم انتخاب‌شده: $_selectedLBankTimeframe. قیمت بالا، داده زنده بازار Futures است؛ اما API رسمی کندل تاریخی/وب‌سوکت برای این قرارداد هنوز تأیید نشده، بنابراین انتخاب تایم‌فریم فعلاً فقط تنظیم رابط است و کندل ساختگی نمایش داده نمی‌شود.',
-              style: TextStyle(color: Colors.white70, height: 1.6),
+              style: const TextStyle(color: Colors.white70, height: 1.6),
             ),
           ),
         ] else if (_quoteError != null) ...[
